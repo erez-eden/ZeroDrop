@@ -782,7 +782,7 @@ td.amount.fee { color: var(--secondary); }
 
 const GATEWAYS = ['Hyp', 'CreditGuard', 'Tranzila', 'Grow'];
 const CUSTOMERS = ['Sarah Chen','Marcus Webb','Elena Voss','Daniel Park','Amira Hassan','Liam Osei','Priya Kapoor','Tomas Reyes','Yuki Tanaka','Noah Kim'];
-const AMTS = [25,39,48,55,64,78,89,95,110,128,145,165,189,210,245,280,320,380,450,520,610,720,850];
+const AMTS = [50,75,99,120,150,189,220,250,290,340,390,450,520,600,720,850,990,1150,1350,1550,1800,2100,2500];
 
 let state = {
   preferredGateway: localStorage.getItem('zdPreferred') || 'Hyp',
@@ -792,7 +792,7 @@ let state = {
   totalGMV: 0,
   rescuedGMV: 0,
   claimableGMV: 0,
-  totalFee: 0,
+  totalBill: 0,
   streamRunning: false,
   streamInterval: null,
   flashActive: false,
@@ -819,9 +819,9 @@ function ago(min) {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 function fmt(n) {
-  if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
-  if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'k';
-  return '$' + n.toFixed(0);
+  if (n >= 1000000) return '₪' + (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '₪' + (n / 1000).toFixed(1) + 'k';
+  return '₪' + n.toFixed(0);
 }
 function gatewayHealth(st) {
   if (st === 'down') return 'down';
@@ -910,7 +910,7 @@ function routeCheckout(amount, customer, orderId) {
     finalGateway, finalStatus, rescued,
     laps,
     timestamp: now(),
-    fee: Math.round(amount * 0.01 * 100) / 100
+    fee: 40
   };
 }
 
@@ -924,7 +924,7 @@ function processCheckout() {
   state.checkouts.unshift(result);
 
   state.totalGMV += amount;
-  state.totalFee += result.fee;
+  state.totalBill += result.fee;
 
   if (result.finalStatus === 'rescued') {
     state.rescuedGMV += amount;
@@ -968,11 +968,11 @@ function animatePacket(result) {
   // Create packet element
   const pkt = document.createElement('div');
   pkt.className = 'packet flying';
-  pkt.textContent = '$' + result.amount;
+  pkt.textContent = '₪' + result.amount;
   pkt.style.left = startX + 'px';
   pkt.style.top = startY + 'px';
   pkt.style.transform = 'translate(-50%, -50%) scale(0.8)';
-  pkt.innerHTML = '$' + result.amount + '<span class="packet-tooltip">' + result.orderId + '</span>';
+  pkt.innerHTML = '₪' + result.amount + '<span class="packet-tooltip">' + result.orderId + '</span>';
   container.appendChild(pkt);
 
   // Animate through each gateway in sequence
@@ -1260,7 +1260,7 @@ function renderDashboard() {
       else if (c.finalStatus === 'rescued') badgeHtml = '<span class="badge badge-cyan" style="margin-top:4px">Rescued</span>';
       else badgeHtml = '<span class="badge badge-danger" style="margin-top:4px">Declined</span>';
       let pathHtml = buildPathHtml(c);
-      return '<div class="activity-row new"><span class="activity-dot '+dotClass+'"></span><div class="activity-info"><div class="activity-customer">'+c.customer+'</div><div class="activity-path">'+pathHtml+'</div>'+badgeHtml+'</div><div class="activity-meta"><div class="activity-amount">$'+c.amount+'</div><div class="activity-time">'+c.timestamp+'</div></div></div>';
+      return '<div class="activity-row new"><span class="activity-dot '+dotClass+'"></span><div class="activity-info"><div class="activity-customer">'+c.customer+'</div><div class="activity-path">'+pathHtml+'</div>'+badgeHtml+'</div><div class="activity-meta"><div class="activity-amount">₪'+c.amount+'</div><div class="activity-time">'+c.timestamp+'</div></div></div>';
     }).join('');
   }
   const countEl = document.getElementById('streamCount');
@@ -1321,9 +1321,9 @@ function renderBilling(area) {
         <div class="metric-change down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> ${state.ledger.length} txns</div>
       </div>
       <div class="metric-card accent">
-        <div class="metric-label">Your Fee (1%)</div>
-        <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalFee)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> 1% of handled</div>
+        <div class="metric-label">Total Bill (40₪ / txn)</div>
+        <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalBill)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${state.checkouts.length} × 40₪</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Insurance Coverage</div>
@@ -1386,7 +1386,7 @@ function renderLedger(area) {
       <div class="card-head"><h2 class="card-title">Reconciliation Ledger</h2></div>
       <div class="card-body zero"><div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Amount</th><th>Fee (1%)</th><th>Gateways Attempted</th><th>Retry Laps</th><th>Claim</th></tr></thead>
+          <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Amount</th><th>Fee (40₪)</th><th>Gateways Attempted</th><th>Retry Laps</th><th>Claim</th></tr></thead>
           <tbody id="ledgerBody"></tbody>
         </table>
       </div></div>
@@ -1411,8 +1411,8 @@ function renderLedgerBody() {
       <td style="font-family:var(--font-mono);font-size:12px">${l.timestamp}</td>
       <td style="font-family:var(--font-mono)">${l.orderId}</td>
       <td>${l.customer}</td>
-      <td class="amount">$${l.amount}</td>
-      <td class="amount fee">$${l.fee.toFixed(2)}</td>
+      <td class="amount">₪${l.amount}</td>
+      <td class="amount fee">40₪</td>
       <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${gws}</td>
       <td style="font-family:var(--font-mono)">${laps} lap${laps!==1?'s':''}</td>
       <td><button class="${claimBtnClass}" onclick="cycleClaim(${i})">${l.claimStatus.toUpperCase()}</button></td>
@@ -1448,17 +1448,17 @@ function renderSettings(area) {
     <div class="card">
       <div class="card-head"><h2 class="card-title">Billing Model</h2></div>
       <div class="card-body" style="font-size:15px">
-        <p style="margin-bottom:var(--space-md)">ZeroDrop charges <strong>1% on all purchases handled</strong> through the failover router. No subscription, no monthly minimum.</p>
+        <p style="margin-bottom:var(--space-md)">ZeroDrop charges <strong>40₪ per transaction</strong>. One contract, one consolidated bill. No subscription, no percentage of GMV, no per-gateway fees. The merchant never pays gateways directly.</p>
         <div style="display:flex;gap:var(--space-lg)">
           <div style="flex:1;padding:var(--space-lg);background:var(--border-subtle);border-radius:var(--radius-md)">
             <div class="metric-label">Rate</div>
-            <div class="metric-value" style="font-size:32px">1%</div>
-            <div style="font-size:13px;color:var(--text-muted)">of handled GMV</div>
+            <div class="metric-value" style="font-size:32px">40₪</div>
+            <div style="font-size:13px;color:var(--text-muted)">per transaction</div>
           </div>
           <div style="flex:1;padding:var(--space-lg);background:var(--border-subtle);border-radius:var(--radius-md)">
-            <div class="metric-label">Your Fee Today</div>
-            <div class="metric-value" style="font-size:32px;color:var(--secondary)">${fmt(state.totalFee)}</div>
-            <div style="font-size:13px;color:var(--text-muted)">from ${fmt(state.totalGMV)} handled</div>
+            <div class="metric-label">Your Bill Today</div>
+            <div class="metric-value" style="font-size:32px;color:var(--secondary)">${fmt(state.totalBill)}</div>
+            <div style="font-size:13px;color:var(--text-muted)">${state.checkouts.length} transactions</div>
           </div>
         </div>
       </div>
