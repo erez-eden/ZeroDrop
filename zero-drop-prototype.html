@@ -780,12 +780,12 @@ td.amount.fee { color: var(--secondary); }
 // ZERODROP PROTOTYPE — STATE & LOGIC
 // ============================================================
 
-const GATEWAYS = ['Stripe', 'Adyen', 'Braintree', 'Checkout.com'];
+const GATEWAYS = ['Hyp', 'CreditGuard', 'Tranzila', 'Grow'];
 const CUSTOMERS = ['Sarah Chen','Marcus Webb','Elena Voss','Daniel Park','Amira Hassan','Liam Osei','Priya Kapoor','Tomas Reyes','Yuki Tanaka','Noah Kim'];
 const AMTS = [25,39,48,55,64,78,89,95,110,128,145,165,189,210,245,280,320,380,450,520,610,720,850];
 
 let state = {
-  preferredGateway: localStorage.getItem('zdPreferred') || 'Stripe',
+  preferredGateway: localStorage.getItem('zdPreferred') || 'Hyp',
   gateways: {},
   checkouts: [],
   ledger: [],
@@ -1178,23 +1178,23 @@ function renderDashboardFull(area) {
             </div>
             <div class="pipeline-connector"></div>
             <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Stripe">STR</div>
-              <div class="pipeline-node-label">Stripe</div>
+              <div class="pipeline-node-icon" data-gw="Hyp">HYP</div>
+              <div class="pipeline-node-label">Hyp</div>
             </div>
             <div class="pipeline-connector"></div>
             <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Adyen">ADY</div>
-              <div class="pipeline-node-label">Adyen</div>
+              <div class="pipeline-node-icon" data-gw="CreditGuard">CRG</div>
+              <div class="pipeline-node-label">CreditGuard</div>
             </div>
             <div class="pipeline-connector"></div>
             <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Braintree">BRN</div>
-              <div class="pipeline-node-label">Braintree</div>
+              <div class="pipeline-node-icon" data-gw="Tranzila">TRZ</div>
+              <div class="pipeline-node-label">Tranzila</div>
             </div>
             <div class="pipeline-connector"></div>
             <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Checkout.com">CHK</div>
-              <div class="pipeline-node-label">Checkout.com</div>
+              <div class="pipeline-node-icon" data-gw="Grow">GRW</div>
+              <div class="pipeline-node-label">Grow</div>
             </div>
             <div class="pipeline-connector"></div>
             <div class="pipeline-node">
