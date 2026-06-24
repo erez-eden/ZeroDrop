@@ -796,6 +796,7 @@ let state = {
   streamRunning: false,
   streamInterval: null,
   flashActive: false,
+  flashInterval: null,
   currentView: 'dashboard'
 };
 
@@ -1067,22 +1068,36 @@ function animatePacket(result) {
 
 // ===== FLASH SALE (FR-10) =====
 function simulateFlashSale() {
-  if (state.flashActive) return;
+  if (state.flashActive) {
+    stopFlashSale();
+    return;
+  }
   state.flashActive = true;
   document.getElementById('flashIndicator').classList.remove('hidden');
-  document.getElementById('flashSaleBtn').disabled = true;
+  document.getElementById('flashSaleBtn').innerHTML = '⏹ Stop Flash Sale';
+  document.getElementById('flashSaleBtn').classList.add('btn-danger');
+  document.getElementById('flashSaleBtn').classList.remove('btn-accent');
 
   let count = 0;
-  const burst = setInterval(() => {
+  state.flashInterval = setInterval(() => {
     processCheckout();
     count++;
     if (count >= 22) {
-      clearInterval(burst);
-      state.flashActive = false;
-      document.getElementById('flashIndicator').classList.add('hidden');
-      document.getElementById('flashSaleBtn').disabled = false;
+      stopFlashSale();
     }
   }, 200);
+}
+
+function stopFlashSale() {
+  if (state.flashInterval) {
+    clearInterval(state.flashInterval);
+    state.flashInterval = null;
+  }
+  state.flashActive = false;
+  document.getElementById('flashIndicator').classList.add('hidden');
+  document.getElementById('flashSaleBtn').innerHTML = '⚡ Simulate Flash Sale';
+  document.getElementById('flashSaleBtn').classList.add('btn-accent');
+  document.getElementById('flashSaleBtn').classList.remove('btn-danger');
 }
 
 // ===== GATEWAY HEALTH SIMULATION =====
@@ -1125,7 +1140,10 @@ function stopStream() {
   if (state.streamInterval) { clearInterval(state.streamInterval); state.streamInterval = null; }
 }
 function toggleStream() {
-  if (state.streamRunning) stopStream();
+  if (state.streamRunning) {
+    stopStream();
+    stopFlashSale();
+  }
   else startStream();
 }
 
