@@ -591,6 +591,55 @@ td.amount.fee { color: var(--secondary); }
 }
 .activity-row.new { animation: slideIn 0.3s ease-out; }
 
+/* ===== Routing Pipeline ===== */
+.pipeline { position: relative; padding: var(--space-lg) 0; overflow: hidden; min-height: 200px; }
+.pipeline-nodes { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); position: relative; z-index: 1; }
+.pipeline-node {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);
+  width: 120px; text-align: center;
+}
+.pipeline-node-icon {
+  width: 48px; height: 48px; border-radius: var(--radius-lg);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 2px solid var(--border);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  transition: border-color 0.3s, background 0.3s, color 0.3s;
+}
+.pipeline-node-icon.start { background: var(--primary); border-color: var(--primary); color: var(--text-on-primary); border-radius: var(--radius-pill); }
+.pipeline-node-icon.end { background: var(--surface); border: 2px dashed var(--border); color: var(--text-muted); }
+.pipeline-node-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.pipeline-node-sublabel { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+.pipeline-connector {
+  flex: 1; height: 2px; background: var(--border);
+  min-width: 24px; position: relative; top: -12px;
+}
+.pipeline-packets {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none; z-index: 2;
+}
+.packet {
+  position: absolute;
+  width: 40px; height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+}
+.packet.success { border-color: var(--success); background: #F0FDF4; color: var(--success); }
+.packet.fail { border-color: var(--danger); background: #FEF2F2; color: var(--danger); }
+.packet.rescued { border-color: var(--accent); background: #ECFEFF; color: #0891B2; }
+.packet.flying { border-color: var(--secondary); background: #F0F9FF; color: var(--secondary); }
+.packet-tooltip {
+  position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  white-space: nowrap; opacity: 0; transition: opacity 0.2s;
+}
+.packet:hover .packet-tooltip { opacity: 1; }
+
 /* ===== Stats Row ===== */
 .stats-row {
   display: grid;
@@ -889,8 +938,131 @@ function processCheckout() {
     });
   }
 
-  if (state.currentView === 'dashboard') renderDashboard();
+  if (state.currentView === 'dashboard') { renderDashboard(); animatePacket(result); }
   updateLedgerBadge();
+}
+
+// ===== PIPELINE ANIMATION =====
+function animatePacket(result) {
+  const container = document.getElementById('pipelinePackets');
+  if (!container) return;
+  const pipeline = document.getElementById('pipeline');
+  if (!pipeline) return;
+
+  const countEl = document.getElementById('pipelineCount');
+  if (countEl) countEl.textContent = (parseInt(countEl.textContent) + 1) + ' processed';
+
+  // Get gateway node positions relative to pipeline
+  const gwNodes = GATEWAYS.map(g => {
+    const el = document.querySelector('[data-gw="' + g + '"]');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const pr = pipeline.getBoundingClientRect();
+    return { gw: g, x: r.left - pr.left + r.width / 2, y: r.top - pr.top + r.height / 2 };
+  }).filter(Boolean);
+
+  const startX = -30;
+  const startY = gwNodes.length > 0 ? gwNodes[0].y : 60;
+  const endX = pipeline.clientWidth + 30;
+
+  // Create packet element
+  const pkt = document.createElement('div');
+  pkt.className = 'packet flying';
+  pkt.textContent = '$' + result.amount;
+  pkt.style.left = startX + 'px';
+  pkt.style.top = startY + 'px';
+  pkt.style.transform = 'translate(-50%, -50%) scale(0.8)';
+  pkt.innerHTML = '$' + result.amount + '<span class="packet-tooltip">' + result.orderId + '</span>';
+  container.appendChild(pkt);
+
+  // Animate through each gateway in sequence
+  let totalDelay = 0;
+  const allAttempts = [];
+  result.laps.forEach(lap => {
+    lap.attempts.forEach(a => { allAttempts.push({ ...a, lap: lap.num }); });
+  });
+
+  // Build animation sequence
+  let sequence = [];
+  let gwIdx = 0;
+  allAttempts.forEach((a, i) => {
+    const node = gwNodes.find(n => n.gw === a.gw);
+    if (!node) return;
+    const isSuccess = a.result === 'success';
+    const isLast = i === allAttempts.length - 1;
+    sequence.push({ node, isSuccess, lap: a.lap, gw: a.gw, isLast });
+  });
+
+  // Execute sequence
+  let stepDelay = 500;
+  sequence.forEach((step, i) => {
+    const delay = totalDelay + (i * stepDelay);
+    setTimeout(() => {
+      // Move to gateway
+      pkt.style.transition = 'all ' + (stepDelay - 100) + 'ms cubic-bezier(0.2, 0, 0, 1)';
+      pkt.style.left = step.node.x + 'px';
+      pkt.style.top = step.node.y + 'px';
+      pkt.style.transform = 'translate(-50%, -50%) scale(1)';
+
+      // Flash gateway node
+      const gwIcon = document.querySelector('[data-gw="' + step.gw + '"]');
+      if (gwIcon) {
+        gwIcon.style.transition = 'all 0.2s';
+        gwIcon.style.background = step.isSuccess ? '#F0FDF4' : '#FEF2F2';
+        gwIcon.style.borderColor = step.isSuccess ? 'var(--success)' : 'var(--danger)';
+        gwIcon.style.color = step.isSuccess ? 'var(--success)' : 'var(--danger)';
+        setTimeout(() => {
+          gwIcon.style.background = '';
+          gwIcon.style.borderColor = '';
+          gwIcon.style.color = '';
+        }, 400);
+      }
+    }, delay);
+  });
+
+  totalDelay = sequence.length * stepDelay + 200;
+
+  // Final outcome
+  setTimeout(() => {
+    const outputEl = document.getElementById('pipelineOutput');
+    if (outputEl) {
+      outputEl.style.transition = 'all 0.3s';
+      if (result.finalStatus === 'cleared') {
+        pkt.className = 'packet success';
+        outputEl.style.background = '#F0FDF4';
+        outputEl.style.borderColor = 'var(--success)';
+        outputEl.textContent = 'CLEAR';
+        outputEl.style.color = 'var(--success)';
+      } else if (result.finalStatus === 'rescued') {
+        pkt.className = 'packet rescued';
+        outputEl.style.background = '#ECFEFF';
+        outputEl.style.borderColor = 'var(--accent)';
+        outputEl.textContent = 'SAVED';
+        outputEl.style.color = '#0891B2';
+      } else {
+        pkt.className = 'packet fail';
+        outputEl.style.background = '#FEF2F2';
+        outputEl.style.borderColor = 'var(--danger)';
+        outputEl.textContent = 'LOST';
+        outputEl.style.color = 'var(--danger)';
+      }
+      // Reset output node
+      setTimeout(() => {
+        outputEl.style.background = '';
+        outputEl.style.borderColor = '';
+        outputEl.textContent = 'RESULT';
+        outputEl.style.color = '';
+      }, 1500);
+    }
+  }, totalDelay);
+
+  // Remove packet after animation
+  setTimeout(() => {
+    pkt.style.transition = 'all 0.3s ease-out';
+    pkt.style.opacity = '0';
+    pkt.style.transform = 'translate(-50%, -50%) scale(0.5)';
+    setTimeout(() => pkt.remove(), 300);
+  }, totalDelay + 800);
 }
 
 // ===== FLASH SALE (FR-10) =====
@@ -992,6 +1164,48 @@ function renderView(view) {
 function renderDashboardFull(area) {
   area.innerHTML = `
     <div class="gateway-grid" id="gatewayGrid"></div>
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">Routing Pipeline</h2>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em" id="pipelineCount">0 in flight</span>
+      </div>
+      <div class="card-body">
+        <div class="pipeline" id="pipeline">
+          <div class="pipeline-nodes">
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon start">CART</div>
+              <div class="pipeline-node-label">Checkout</div>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon" data-gw="Stripe">STR</div>
+              <div class="pipeline-node-label">Stripe</div>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon" data-gw="Adyen">ADY</div>
+              <div class="pipeline-node-label">Adyen</div>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon" data-gw="Braintree">BRN</div>
+              <div class="pipeline-node-label">Braintree</div>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon" data-gw="Checkout.com">CHK</div>
+              <div class="pipeline-node-label">Checkout.com</div>
+            </div>
+            <div class="pipeline-connector"></div>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon end" id="pipelineOutput">RESULT</div>
+              <div class="pipeline-node-label">Outcome</div>
+            </div>
+          </div>
+          <div class="pipeline-packets" id="pipelinePackets"></div>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head">
         <h2 class="card-title">Live Checkout Stream</h2>
