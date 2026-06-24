@@ -1082,9 +1082,6 @@ function simulateFlashSale() {
   state.flashInterval = setInterval(() => {
     processCheckout();
     count++;
-    if (count >= 22) {
-      stopFlashSale();
-    }
   }, 200);
 }
 
