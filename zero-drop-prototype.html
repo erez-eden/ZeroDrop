@@ -1,0 +1,1285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ZeroDrop — Payment Failover Router</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #FFFFFF;
+  --surface: #F8FAFC;
+  --surface-elevated: #FFFFFF;
+  --primary: #0F172A;
+  --secondary: #0EA5E9;
+  --accent: #22D3EE;
+  --text: #0F172A;
+  --text-muted: #64748B;
+  --text-on-primary: #FFFFFF;
+  --border: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --info: #3B82F6;
+  --font-body: Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --shadow-dropdown: 0 20px 40px rgba(15,23,42,0.12);
+  --sidebar-width: 260px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+}
+::selection { background: var(--accent); color: var(--primary); }
+
+.hidden { display: none !important; }
+
+/* ===== Login Screen ===== */
+.login-screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #F8FAFC 0%, #F0F9FF 50%, #ECFEFF 100%);
+  z-index: 1000;
+}
+.login-card {
+  width: 400px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xl);
+  box-shadow: var(--shadow-dropdown);
+}
+.login-logo {
+  font-family: var(--font-body);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+  margin-bottom: var(--space-xs);
+}
+.login-logo span { color: var(--secondary); }
+.login-subtitle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-xl);
+}
+.login-field {
+  display: flex; flex-direction: column; gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+.login-field label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.login-field input {
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+}
+.login-field input:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+}
+.login-btn {
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--text-on-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: var(--space-sm);
+}
+.login-btn:hover { background: #1E293B; }
+.login-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: var(--space-md);
+}
+
+/* ===== App Shell ===== */
+.app { display: flex; width: 100%; height: 100vh; overflow: hidden; }
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+}
+.sidebar-head {
+  padding: var(--space-lg) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sidebar-brand {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+  text-decoration: none;
+}
+.sidebar-brand span { color: var(--secondary); }
+.sidebar-nav {
+  padding: var(--space-md) var(--space-sm);
+  flex: 1;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-md);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+  transition: background 0.15s, color 0.15s;
+}
+.nav-item:hover { background: var(--border-subtle); color: var(--text); }
+.nav-item.active { background: var(--primary); color: var(--text-on-primary); }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; }
+.nav-item.active svg { opacity: 1; }
+.nav-label { display: flex; align-items: center; justify-content: space-between; flex: 1; }
+.nav-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border-subtle);
+  color: var(--secondary);
+  font-size: 11px; font-weight: 700;
+}
+.nav-item.active .nav-badge { background: rgba(255,255,255,0.2); color: #fff; }
+.nav-section {
+  padding: var(--space-lg) var(--space-md) var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.sidebar-foot {
+  padding: var(--space-md) var(--space-sm);
+  border-top: 1px solid var(--border-subtle);
+}
+.user-card {
+  display: flex; align-items: center; gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+}
+.user-avatar {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--secondary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; color: #fff;
+}
+.user-name { font-size: 14px; font-weight: 600; }
+.user-role { font-size: 12px; color: var(--text-muted); }
+
+/* Main */
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  min-width: 0; overflow: hidden;
+}
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: var(--space-md); }
+.topbar-right { display: flex; align-items: center; gap: var(--space-sm); }
+.page-title {
+  font-size: 20px; font-weight: 600; letter-spacing: -0.02em;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm);
+  min-height: 38px; padding: 0 var(--space-lg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body); font-size: 14px; font-weight: 500;
+  cursor: pointer; text-decoration: none;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: var(--primary); color: var(--text-on-primary); border-color: var(--primary); }
+.btn-primary:hover { background: #1E293B; }
+.btn-secondary { background: var(--surface-elevated); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover { border-color: var(--secondary); color: var(--secondary); }
+.btn-accent { background: var(--secondary); color: #fff; border-color: var(--secondary); }
+.btn-accent:hover { background: #0284C7; border-color: #0284C7; }
+.btn-cyan { background: transparent; color: var(--accent); border-color: var(--accent); font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.btn-cyan:hover { background: var(--accent); color: var(--primary); }
+.btn-sm { min-height: 32px; padding: 0 var(--space-md); font-size: 13px; }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-danger:hover { background: #DC2626; }
+.btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+.btn-success:hover { background: #16A34A; }
+
+.content {
+  flex: 1; overflow-y: auto; padding: var(--space-lg);
+}
+
+/* ===== Metric Cards ===== */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+.metric-card.accent {
+  border-left: 3px solid var(--accent);
+}
+.metric-label {
+  font-size: 13px; color: var(--text-muted); font-weight: 500;
+}
+.metric-value {
+  font-family: var(--font-body);
+  font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+  margin-top: var(--space-xs);
+}
+.metric-change {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: var(--space-sm);
+  font-size: 13px; font-weight: 600;
+}
+.metric-change.up { color: var(--success); }
+.metric-change.down { color: var(--danger); }
+.metric-change svg { width: 14px; height: 14px; }
+
+/* ===== Cards ===== */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--space-lg);
+}
+.card-head {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.card-title {
+  font-size: 18px; font-weight: 600; letter-spacing: -0.02em;
+}
+.card-body { padding: var(--space-lg); }
+.card-body.zero { padding: 0; }
+
+/* ===== Activity Feed ===== */
+.activity-feed {
+  max-height: 420px;
+  overflow-y: auto;
+}
+.activity-row {
+  display: flex; align-items: flex-start; gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.activity-row:last-child { border-bottom: none; }
+.activity-row:hover { background: var(--border-subtle); }
+.activity-dot {
+  width: 8px; height: 8px;
+  border-radius: var(--radius-pill);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.activity-dot.cleared { background: var(--success); }
+.activity-dot.rescued { background: var(--accent); }
+.activity-dot.declined { background: var(--danger); }
+.activity-info { flex: 1; min-width: 0; }
+.activity-customer { font-weight: 600; }
+.activity-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.activity-path .ok { color: var(--success); }
+.activity-path .fail { color: var(--danger); }
+.activity-path .lap { color: var(--warning); }
+.activity-amount { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.activity-meta {
+  text-align: right; flex-shrink: 0;
+}
+.activity-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ===== Gateway Cards ===== */
+.gateway-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.gateway-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  position: relative;
+}
+.gateway-card.preferred {
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 1px var(--secondary);
+}
+.gateway-card.preferred::after {
+  content: "★ Preferred";
+  position: absolute; top: var(--space-md); right: var(--space-md);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--secondary);
+}
+.gateway-name { font-size: 16px; font-weight: 600; }
+.gateway-status {
+  display: inline-flex; align-items: center; gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.gateway-status::before {
+  content: ""; width: 8px; height: 8px; border-radius: var(--radius-pill);
+}
+.gateway-status.healthy::before { background: var(--success); }
+.gateway-status.healthy { color: var(--success); }
+.gateway-status.degraded::before { background: var(--warning); animation: pulse 1s infinite; }
+.gateway-status.degraded { color: var(--warning); }
+.gateway-status.down::before { background: var(--danger); }
+.gateway-status.down { color: var(--danger); }
+.gateway-latency {
+  font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); margin-top: var(--space-xs);
+}
+.gateway-uptime {
+  font-size: 13px; color: var(--text-muted); margin-top: 2px;
+}
+.gateway-actions {
+  display: flex; gap: var(--space-sm); margin-top: var(--space-md);
+}
+
+/* ===== Status Badges ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: var(--space-xs);
+  padding: 3px 10px; border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: var(--radius-pill); }
+.badge-success { background: #F0FDF4; color: #15803D; }
+.badge-success::before { background: #15803D; }
+.badge-warning { background: #FFFBEB; color: #B45309; }
+.badge-warning::before { background: #B45309; }
+.badge-danger { background: #FEF2F2; color: #B91C1C; }
+.badge-danger::before { background: #B91C1C; }
+.badge-info { background: #F0F9FF; color: #0369A1; }
+.badge-info::before { background: #0369A1; }
+.badge-cyan { background: #ECFEFF; color: #0891B2; }
+.badge-cyan::before { background: #0891B2; }
+
+/* ===== Charts ===== */
+.charts-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.chart-bars {
+  display: flex; align-items: flex-end; gap: var(--space-sm);
+  height: 200px;
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.bar-group {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);
+  height: 100%; justify-content: flex-end;
+}
+.bar-wrap {
+  display: flex; gap: 2px; align-items: flex-end;
+  height: 100%; width: 100%; justify-content: center;
+}
+.bar-saved {
+  width: 30px;
+  border-radius: 4px 4px 0 0;
+  background: var(--secondary);
+  transition: opacity 0.15s;
+}
+.bar-lost {
+  width: 30px;
+  border-radius: 4px 4px 0 0;
+  background: var(--danger);
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.bar-saved:hover, .bar-lost:hover { opacity: 1; }
+.bar-label { font-size: 12px; color: var(--text-muted); }
+.bar-value { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+.donut-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-md);
+}
+.donut {
+  width: 140px; height: 140px;
+  border-radius: var(--radius-pill);
+  position: relative;
+}
+.donut-hole {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 80px; height: 80px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.donut-value {
+  font-size: 24px; font-weight: 700; letter-spacing: -0.02em;
+}
+.donut-label {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.legend-list {
+  display: flex; flex-direction: column; gap: var(--space-sm); width: 100%;
+}
+.legend-item {
+  display: flex; align-items: center; gap: var(--space-sm); font-size: 13px;
+}
+.legend-dot { width: 8px; height: 8px; border-radius: var(--radius-pill); flex-shrink: 0; }
+.legend-val { margin-left: auto; font-weight: 600; }
+
+/* ===== Table ===== */
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  text-align: left;
+  padding: var(--space-md) var(--space-lg);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+}
+td {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--border-subtle); }
+td.amount { font-family: var(--font-mono); font-weight: 600; font-size: 13px; }
+td.amount.fee { color: var(--secondary); }
+.claim-btn {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 10px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.claim-btn:hover { background: var(--border-subtle); border-color: var(--secondary); }
+.claim-btn.filed { background: #FEF3C7; color: #92400E; border-color: #F59E0B; }
+.claim-btn.settled { background: #F0FDF4; color: #15803D; border-color: #22C55E; }
+
+/* ===== Settings ===== */
+.settings-form {
+  max-width: 560px;
+}
+.setting-group {
+  margin-bottom: var(--space-lg);
+}
+.setting-group label {
+  display: block;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+.setting-group select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body); font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+}
+.setting-group select:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+}
+.setting-hint {
+  font-size: 13px; color: var(--text-muted); margin-top: var(--space-sm);
+}
+.saved-msg {
+  font-family: var(--font-mono); font-size: 13px;
+  color: var(--success); margin-top: var(--space-sm);
+  opacity: 0; transition: opacity 0.3s;
+}
+.saved-msg.show { opacity: 1; }
+
+/* ===== Animations ===== */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.activity-row.new { animation: slideIn 0.3s ease-out; }
+
+/* ===== Stats Row ===== */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+.inner-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.inner-metric {
+  padding: var(--space-lg);
+  border-right: 1px solid var(--border-subtle);
+}
+.inner-metric:last-child { border-right: none; }
+.inner-metric strong {
+  display: block;
+  font-size: 24px; font-weight: 700; letter-spacing: -0.02em;
+}
+.inner-metric span { font-size: 13px; color: var(--text-muted); }
+
+/* ===== Flash Sale Indicator ===== */
+.flash-indicator {
+  display: inline-flex; align-items: center; gap: var(--space-sm);
+  padding: 6px var(--space-md);
+  border-radius: var(--radius-pill);
+  background: #FEF3C7;
+  color: #92400E;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  animation: pulse 1s infinite;
+}
+.flash-indicator::before {
+  content: ""; width: 6px; height: 6px; border-radius: var(--radius-pill);
+  background: #F59E0B;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1200px) {
+  .metric-grid { grid-template-columns: repeat(3, 1fr); }
+  .gateway-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-row { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .metric-grid { grid-template-columns: 1fr; }
+  .gateway-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">Zero<span>Drop</span></div>
+    <div class="login-subtitle">Payment Failover Router</div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" value="adam.kogan@zerodrop.dev" placeholder="you@company.com" />
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" value="any-password-works" placeholder="Enter password" />
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-hint">Prototype — any password works</div>
+  </div>
+</div>
+
+<!-- APP (hidden until login) -->
+<div class="app hidden" id="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <a href="#" class="sidebar-brand" onclick="navigate('dashboard')">Zero<span>Drop</span></a>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <span class="nav-section">Views</span>
+      <button class="nav-item active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+        <span class="nav-badge" id="liveBadge" style="margin-left:auto">LIVE</span>
+      </button>
+      <button class="nav-item" data-view="billing">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        GMV & Billing
+      </button>
+      <button class="nav-item" data-view="ledger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Ledger
+        <span class="nav-badge" id="ledgerBadge" style="margin-left:auto">0</span>
+      </button>
+      <span class="nav-section">Configure</span>
+      <button class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-card">
+        <div class="user-avatar">AK</div>
+        <div>
+          <div class="user-name">Adam Kogan</div>
+          <div class="user-role">Operator</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title" id="pageTitle">Dashboard</h1>
+        <span class="flash-indicator hidden" id="flashIndicator">⚡ Flash Sale Active</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-accent btn-sm" onclick="simulateFlashSale()" id="flashSaleBtn">⚡ Simulate Flash Sale</button>
+        <button class="btn btn-secondary btn-sm" id="streamToggle" onclick="toggleStream()">⏸ Pause Stream</button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content" id="contentArea">
+      <!-- Views loaded dynamically -->
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// ZERODROP PROTOTYPE — STATE & LOGIC
+// ============================================================
+
+const GATEWAYS = ['Stripe', 'Adyen', 'Braintree', 'Checkout.com'];
+const CUSTOMERS = ['Sarah Chen','Marcus Webb','Elena Voss','Daniel Park','Amira Hassan','Liam Osei','Priya Kapoor','Tomas Reyes','Yuki Tanaka','Noah Kim'];
+const AMTS = [25,39,48,55,64,78,89,95,110,128,145,165,189,210,245,280,320,380,450,520,610,720,850];
+
+let state = {
+  preferredGateway: localStorage.getItem('zdPreferred') || 'Stripe',
+  gateways: {},
+  checkouts: [],
+  ledger: [],
+  totalGMV: 0,
+  rescuedGMV: 0,
+  claimableGMV: 0,
+  totalFee: 0,
+  streamRunning: false,
+  streamInterval: null,
+  flashActive: false,
+  currentView: 'dashboard'
+};
+
+// Initialize gateway state
+GATEWAYS.forEach(g => {
+  state.gateways[g] = {
+    status: 'healthy',
+    latency: rand(80, 200),
+    uptime: randInt(99, 100),
+    downSince: null,
+    forcedDown: false
+  };
+});
+
+// ===== HELPERS =====
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randInt(min, max) { return rand(min, max); }
+function now() { return new Date().toLocaleTimeString('en-US', { hour12: false }); }
+function ago(min) {
+  const d = new Date(Date.now() - min * 60000);
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function fmt(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'k';
+  return '$' + n.toFixed(0);
+}
+function gatewayHealth(st) {
+  if (st === 'down') return 'down';
+  if (st === 'degraded') return 'degraded';
+  return 'healthy';
+}
+
+// ===== ROUTING ENGINE (FR-3) =====
+function routeCheckout(amount, customer, orderId) {
+  const preferred = state.preferredGateway;
+  const laps = [];
+  let rescued = false;
+  let finalGateway = null;
+  let finalStatus = 'declined';
+
+  const hardFails = new Set();
+
+  // Lap 1 — immediate
+  const lap1Gateways = [preferred, ...GATEWAYS.filter(g => g !== preferred)];
+  laps.push({ num: 1, attempts: [] });
+  for (const gw of lap1Gateways) {
+    if (hardFails.has(gw)) continue;
+    const gs = state.gateways[gw];
+    if (gs.forcedDown || gs.status === 'down') {
+      laps[0].attempts.push({ gw, result: 'skip-down' });
+      continue;
+    }
+    const fails = Math.random() < 0.18; // 18% simulated fail
+    laps[0].attempts.push({ gw, result: fails ? 'fail' : 'success' });
+    if (!fails) {
+      finalGateway = gw;
+      finalStatus = 'cleared';
+      rescued = false;
+      break;
+    } else {
+      if (Math.random() < 0.05) hardFails.add(gw); // 5% hard fail
+    }
+  }
+
+  // Lap 2 — 500ms backoff across remaining gateways
+  if (!finalGateway) {
+    laps.push({ num: 2, attempts: [] });
+    const remaining = GATEWAYS.filter(g => !hardFails.has(g));
+    for (const gw of remaining) {
+      const gs = state.gateways[gw];
+      if (gs.forcedDown || gs.status === 'down') {
+        laps[1].attempts.push({ gw, result: 'skip-down' });
+        continue;
+      }
+      const fails = Math.random() < 0.25;
+      laps[1].attempts.push({ gw, result: fails ? 'fail' : 'success' });
+      if (!fails) {
+        finalGateway = gw;
+        finalStatus = 'rescued';
+        rescued = true;
+        break;
+      } else {
+        if (Math.random() < 0.05) hardFails.add(gw);
+      }
+    }
+  }
+
+  // Lap 3 — 1000ms backoff, final try
+  if (!finalGateway) {
+    laps.push({ num: 3, attempts: [] });
+    const remaining = GATEWAYS.filter(g => !hardFails.has(g));
+    for (const gw of remaining) {
+      const gs = state.gateways[gw];
+      if (gs.forcedDown || gs.status === 'down') {
+        laps[2].attempts.push({ gw, result: 'skip-down' });
+        continue;
+      }
+      const fails = Math.random() < 0.30;
+      laps[2].attempts.push({ gw, result: fails ? 'fail' : 'success' });
+      if (!fails) {
+        finalGateway = gw;
+        finalStatus = 'rescued';
+        rescued = true;
+        break;
+      }
+    }
+  }
+
+  return {
+    orderId, customer, amount, preferred,
+    finalGateway, finalStatus, rescued,
+    laps,
+    timestamp: now(),
+    fee: Math.round(amount * 0.01 * 100) / 100
+  };
+}
+
+// ===== PROCESS CHECKOUT =====
+function processCheckout() {
+  const amount = AMTS[Math.floor(Math.random() * AMTS.length)];
+  const customer = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
+  const orderId = '#SHOP-' + rand(1000, 9999);
+
+  const result = routeCheckout(amount, customer, orderId);
+  state.checkouts.unshift(result);
+
+  state.totalGMV += amount;
+  state.totalFee += result.fee;
+
+  if (result.finalStatus === 'rescued') {
+    state.rescuedGMV += amount;
+  }
+
+  if (result.finalStatus === 'declined') {
+    state.claimableGMV += amount;
+    state.ledger.unshift({
+      ...result,
+      claimStatus: 'pending'
+    });
+  }
+
+  if (state.currentView === 'dashboard') renderDashboard();
+  updateLedgerBadge();
+}
+
+// ===== FLASH SALE (FR-10) =====
+function simulateFlashSale() {
+  if (state.flashActive) return;
+  state.flashActive = true;
+  document.getElementById('flashIndicator').classList.remove('hidden');
+  document.getElementById('flashSaleBtn').disabled = true;
+
+  let count = 0;
+  const burst = setInterval(() => {
+    processCheckout();
+    count++;
+    if (count >= 22) {
+      clearInterval(burst);
+      state.flashActive = false;
+      document.getElementById('flashIndicator').classList.add('hidden');
+      document.getElementById('flashSaleBtn').disabled = false;
+    }
+  }, 200);
+}
+
+// ===== GATEWAY HEALTH SIMULATION =====
+function updateGatewayHealth() {
+  GATEWAYS.forEach(g => {
+    const gw = state.gateways[g];
+    if (gw.forcedDown) {
+      gw.status = 'down';
+      gw.latency = 0;
+      gw.uptime = Math.max(0, gw.uptime - randInt(0, 1));
+      return;
+    }
+    const r = Math.random();
+    if (gw.status === 'healthy' && r < 0.05) gw.status = 'degraded';
+    else if (gw.status === 'degraded' && r < 0.08) gw.status = 'down';
+    else if (gw.status === 'down' && r < 0.15) gw.status = 'degraded';
+    else if (gw.status === 'degraded' && r < 0.20) gw.status = 'healthy';
+    else if (gw.status === 'healthy' && r < 0.02) gw.status = 'healthy'; // mostly stays
+
+    if (gw.status === 'healthy') gw.latency = rand(60, 180);
+    else if (gw.status === 'degraded') gw.latency = rand(180, 450);
+    else gw.latency = 0;
+
+    if (gw.status === 'healthy') gw.uptime = Math.min(100, gw.uptime + randInt(0, 1));
+  });
+
+  if (state.currentView === 'dashboard') renderGatewayCards();
+}
+
+// ===== STREAM CONTROL =====
+function startStream() {
+  if (state.streamInterval) return;
+  state.streamRunning = true;
+  document.getElementById('streamToggle').innerHTML = '⏸ Pause Stream';
+  state.streamInterval = setInterval(() => processCheckout(), rand(1200, 3000));
+}
+function stopStream() {
+  state.streamRunning = false;
+  document.getElementById('streamToggle').innerHTML = '▶ Resume Stream';
+  if (state.streamInterval) { clearInterval(state.streamInterval); state.streamInterval = null; }
+}
+function toggleStream() {
+  if (state.streamRunning) stopStream();
+  else startStream();
+}
+
+// ===== LEDGER BADGE =====
+function updateLedgerBadge() {
+  const badge = document.getElementById('ledgerBadge');
+  badge.textContent = state.ledger.length;
+}
+
+// ===== NAVIGATION =====
+function navigate(view) {
+  state.currentView = view;
+  document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === view);
+  });
+  const titles = { dashboard: 'Dashboard', billing: 'GMV & Billing', ledger: 'Reconciliation Ledger', settings: 'Settings' };
+  document.getElementById('pageTitle').textContent = titles[view] || 'Dashboard';
+  renderView(view);
+}
+document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+  el.addEventListener('click', () => navigate(el.dataset.view));
+});
+
+// ===== RENDER VIEWS =====
+function renderView(view) {
+  const area = document.getElementById('contentArea');
+  switch (view) {
+    case 'dashboard': renderDashboardFull(area); break;
+    case 'billing': renderBilling(area); break;
+    case 'ledger': renderLedger(area); break;
+    case 'settings': renderSettings(area); break;
+  }
+}
+
+// --- DASHBOARD ---
+function renderDashboardFull(area) {
+  area.innerHTML = `
+    <div class="gateway-grid" id="gatewayGrid"></div>
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">Live Checkout Stream</h2>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em" id="streamCount">0 transactions</span>
+      </div>
+      <div class="card-body zero">
+        <div class="activity-feed" id="activityFeed">
+          <div style="padding:var(--space-2xl);text-align:center;color:var(--text-muted);font-size:14px">
+            Waiting for checkouts...
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  renderGatewayCards();
+  renderDashboard();
+}
+function renderGatewayCards() {
+  const grid = document.getElementById('gatewayGrid');
+  if (!grid) return;
+  grid.innerHTML = GATEWAYS.map(g => {
+    const gw = state.gateways[g];
+    const isPref = state.preferredGateway === g;
+    const down = gw.forcedDown || gw.status === 'down';
+    const degraded = gw.status === 'degraded';
+    const statusClass = down ? 'down' : (degraded ? 'degraded' : 'healthy');
+    const statusLabel = gw.forcedDown ? 'Forced Down' : (down ? 'Down' : (degraded ? 'Degraded' : 'Healthy'));
+    return `
+      <div class="gateway-card ${isPref ? 'preferred' : ''}">
+        <div class="gateway-name">${g}</div>
+        <div class="gateway-status ${statusClass}">${statusLabel}</div>
+        <div class="gateway-latency">${gw.latency ? gw.latency + 'ms' : '—'}</div>
+        <div class="gateway-uptime">${gw.uptime}% uptime (1h)</div>
+        <div class="gateway-actions">
+          ${gw.forcedDown
+            ? '<button class="btn btn-success btn-sm" onclick="recoverGateway(\''+g+'\')">Recover</button>'
+            : '<button class="btn btn-danger btn-sm" onclick="simulateOutage(\''+g+'\')">Simulate Outage</button>'}
+        </div>
+      </div>`;
+  }).join('');
+}
+function renderDashboard() {
+  const feed = document.getElementById('activityFeed');
+  if (!feed) return;
+  if (state.checkouts.length === 0) {
+    feed.innerHTML = '<div style="padding:var(--space-2xl);text-align:center;color:var(--text-muted);font-size:14px">Waiting for checkouts...</div>';
+  } else {
+    feed.innerHTML = state.checkouts.slice(0, 50).map(c => {
+      let dotClass = c.finalStatus === 'cleared' ? 'cleared' : (c.finalStatus === 'rescued' ? 'rescued' : 'declined');
+      let badgeHtml = '';
+      if (c.finalStatus === 'cleared') badgeHtml = '<span class="badge badge-success" style="margin-top:4px">Cleared</span>';
+      else if (c.finalStatus === 'rescued') badgeHtml = '<span class="badge badge-cyan" style="margin-top:4px">Rescued</span>';
+      else badgeHtml = '<span class="badge badge-danger" style="margin-top:4px">Declined</span>';
+      let pathHtml = buildPathHtml(c);
+      return '<div class="activity-row new"><span class="activity-dot '+dotClass+'"></span><div class="activity-info"><div class="activity-customer">'+c.customer+'</div><div class="activity-path">'+pathHtml+'</div>'+badgeHtml+'</div><div class="activity-meta"><div class="activity-amount">$'+c.amount+'</div><div class="activity-time">'+c.timestamp+'</div></div></div>';
+    }).join('');
+  }
+  const countEl = document.getElementById('streamCount');
+  if (countEl) countEl.textContent = state.checkouts.length + ' transactions';
+}
+
+function buildPathHtml(c) {
+  let html = '';
+  let totalAtt = 0;
+  c.laps.forEach(lap => {
+    lap.attempts.forEach(a => {
+      totalAtt++;
+      const cls = a.result === 'success' ? 'ok' : (a.result === 'skip-down' ? 'fail' : 'fail');
+      const sym = a.result === 'success' ? ' ✓ ' : (a.result === 'skip-down' ? ' ✗↓ ' : ' ✗ ');
+      html += '<span class="' + cls + '">' + a.gw + sym + '</span>';
+    });
+    if (lap.num < c.laps.length && c.laps[lap.num] && c.laps[lap.num].attempts.length > 0) {
+      html += '<span class="lap">[L' + (lap.num+1) + ' retry] </span>';
+    }
+  });
+  html += c.finalGateway ? '<span class="ok">→ ' + c.finalGateway + ' ✓</span>' : '<span class="fail">→ all failed</span>';
+  return html;
+}
+
+function simulateOutage(gw) {
+  state.gateways[gw].forcedDown = true;
+  renderGatewayCards();
+}
+function recoverGateway(gw) {
+  state.gateways[gw].forcedDown = false;
+  state.gateways[gw].status = 'healthy';
+  state.gateways[gw].latency = rand(60, 180);
+  renderGatewayCards();
+}
+
+// --- BILLING ---
+function renderBilling(area) {
+  const rescuedPct = state.totalGMV > 0 ? ((state.rescuedGMV / state.totalGMV) * 100).toFixed(0) : 0;
+  const rescuedDeg = state.totalGMV > 0 ? (state.rescuedGMV / state.totalGMV) * 360 : 0;
+  const claimDeg = state.claimableGMV > 0 ? (state.claimableGMV / state.totalGMV) * 360 : 0;
+  const clearedDeg = Math.max(0, 360 - rescuedDeg - claimDeg);
+
+  area.innerHTML = `
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Total GMV</div>
+        <div class="metric-value">${fmt(state.totalGMV)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> All handled</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Rescued GMV</div>
+        <div class="metric-value">${fmt(state.rescuedGMV)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${rescuedPct}% of total</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Claimable Lost</div>
+        <div class="metric-value" style="color:var(--danger)">${fmt(state.claimableGMV)}</div>
+        <div class="metric-change down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> ${state.ledger.length} txns</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Your Fee (1%)</div>
+        <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalFee)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> 1% of handled</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Insurance Coverage</div>
+        <div class="metric-value">${fmt(500000)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> Active policy</div>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Weekly GMV breakdown</h2></div>
+        <div class="card-body"><div id="weeklyChart" class="chart-bars"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Routing outcomes</h2></div>
+        <div class="card-body">
+          <div class="donut-wrap">
+            <div class="donut" style="background:conic-gradient(var(--secondary) 0deg ${rescuedDeg}deg, var(--danger) ${rescuedDeg}deg ${rescuedDeg+claimDeg}deg, var(--success) ${rescuedDeg+claimDeg}deg 360deg)"><div class="donut-hole"><span class="donut-value">${rescuedPct}%</span><span class="donut-label">rescued</span></div></div>
+            <div class="legend-list">
+              <div class="legend-item"><span class="legend-dot" style="background:var(--success)"></span>Cleared<span class="legend-val">${fmt(state.totalGMV - state.rescuedGMV - state.claimableGMV)}</span></div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--secondary)"></span>Rescued <span class="legend-val">${fmt(state.rescuedGMV)}</span></div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--danger)"></span>Lost <span class="legend-val">${fmt(state.claimableGMV)}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  renderWeeklyChart();
+}
+function renderWeeklyChart() {
+  const el = document.getElementById('weeklyChart');
+  if (!el) return;
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  el.innerHTML = days.map(d => {
+    const saved = rand(5, 50);
+    const lost = rand(0, 5);
+    const maxBar = 180;
+    return '<div class="bar-group"><span class="bar-value">'+fmt(saved*1000)+'</span><div class="bar-wrap"><div class="bar-saved" style="height:'+(saved/maxBar*100)+'%"></div><div class="bar-lost" style="height:'+(lost/maxBar*100)+'%"></div></div><span class="bar-label">'+d+'</span></div>';
+  }).join('');
+}
+
+// --- LEDGER ---
+function renderLedger(area) {
+  area.innerHTML = `
+    <div class="metric-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-lg)">
+      <div class="metric-card">
+        <div class="metric-label">Unrecoverable TXNs</div>
+        <div class="metric-value" style="color:var(--danger)">${state.ledger.length}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Claimable Lost GMV</div>
+        <div class="metric-value" style="color:var(--danger)">${fmt(state.claimableGMV)}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Claims Filed</div>
+        <div class="metric-value">${state.ledger.filter(l => l.claimStatus === 'filed' || l.claimStatus === 'settled').length}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Reconciliation Ledger</h2></div>
+      <div class="card-body zero"><div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Amount</th><th>Fee (1%)</th><th>Gateways Attempted</th><th>Retry Laps</th><th>Claim</th></tr></thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+      </div></div>
+    </div>
+  `;
+  renderLedgerBody();
+}
+function renderLedgerBody() {
+  const tbody = document.getElementById('ledgerBody');
+  if (!tbody) return;
+  if (state.ledger.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:var(--space-2xl);text-align:center;color:var(--text-muted)">No unrecoverable transactions yet. Try simulating a gateway outage.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = state.ledger.map((l, i) => {
+    const gws = l.laps.flatMap(lap => lap.attempts.map(a => a.gw)).join(', ');
+    const laps = l.laps.length;
+    let claimBtnClass = 'claim-btn';
+    if (l.claimStatus === 'filed') claimBtnClass += ' filed';
+    if (l.claimStatus === 'settled') claimBtnClass += ' settled';
+    return `<tr>
+      <td style="font-family:var(--font-mono);font-size:12px">${l.timestamp}</td>
+      <td style="font-family:var(--font-mono)">${l.orderId}</td>
+      <td>${l.customer}</td>
+      <td class="amount">$${l.amount}</td>
+      <td class="amount fee">$${l.fee.toFixed(2)}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${gws}</td>
+      <td style="font-family:var(--font-mono)">${laps} lap${laps!==1?'s':''}</td>
+      <td><button class="${claimBtnClass}" onclick="cycleClaim(${i})">${l.claimStatus.toUpperCase()}</button></td>
+    </tr>`;
+  }).join('');
+}
+function cycleClaim(i) {
+  const order = ['pending','filed','settled'];
+  const cur = order.indexOf(state.ledger[i].claimStatus);
+  state.ledger[i].claimStatus = order[(cur + 1) % 3];
+  renderLedgerBody();
+}
+
+// --- SETTINGS ---
+function renderSettings(area) {
+  const gw = state.preferredGateway;
+  area.innerHTML = `
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Gateway Preferences</h2></div>
+      <div class="card-body">
+        <div class="settings-form">
+          <div class="setting-group">
+            <label>Preferred Gateway</label>
+            <select id="prefGateway" onchange="savePreferred()">
+              ${GATEWAYS.map(g => `<option value="${g}" ${g===gw?'selected':''}>${g}</option>`).join('')}
+            </select>
+            <p class="setting-hint">ZeroDrop will try this gateway first. Remaining gateways are routed by health metrics.</p>
+          </div>
+          <p class="saved-msg show" id="prefSaved">✓ Preference saved to this browser</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">Billing Model</h2></div>
+      <div class="card-body" style="font-size:15px">
+        <p style="margin-bottom:var(--space-md)">ZeroDrop charges <strong>1% on all purchases handled</strong> through the failover router. No subscription, no monthly minimum.</p>
+        <div style="display:flex;gap:var(--space-lg)">
+          <div style="flex:1;padding:var(--space-lg);background:var(--border-subtle);border-radius:var(--radius-md)">
+            <div class="metric-label">Rate</div>
+            <div class="metric-value" style="font-size:32px">1%</div>
+            <div style="font-size:13px;color:var(--text-muted)">of handled GMV</div>
+          </div>
+          <div style="flex:1;padding:var(--space-lg);background:var(--border-subtle);border-radius:var(--radius-md)">
+            <div class="metric-label">Your Fee Today</div>
+            <div class="metric-value" style="font-size:32px;color:var(--secondary)">${fmt(state.totalFee)}</div>
+            <div style="font-size:13px;color:var(--text-muted)">from ${fmt(state.totalGMV)} handled</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function savePreferred() {
+  const sel = document.getElementById('prefGateway');
+  state.preferredGateway = sel.value;
+  localStorage.setItem('zdPreferred', sel.value);
+  const msg = document.getElementById('prefSaved');
+  msg.classList.remove('show');
+  void msg.offsetWidth;
+  msg.classList.add('show');
+}
+
+// ===== LOGIN =====
+function doLogin() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  navigate('dashboard');
+  startStream();
+}
+
+// Enter key on login
+document.getElementById('loginPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ===== BACKGROUND HEALTH UPDATES =====
+setInterval(updateGatewayHealth, 6000);
+
+// ===== INIT =====
+console.log('ZeroDrop Prototype ready');
+console.log('User: Adam Kogan | Preferred gateway:', state.preferredGateway);
+</script>
+</body>
+</html>

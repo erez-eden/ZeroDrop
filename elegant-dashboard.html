@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clay Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f0f4ff;
+      --surface: #fefdfb;
+      --surface-warm: #f4f3f0;
+      --fg: #000000;
+      --fg-2: #302f2c;
+      --muted: #7b7974;
+      --meta: #3859f9;
+      --border: #dad4c8;
+      --border-soft: #f4f3f0;
+      --accent: #3859f9;
+      --accent-on: #ffffff;
+      --accent-hover: #2a4ad8;
+      --accent-active: #1e3bb8;
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --blue-light: #eef2ff;
+      --blue-300: #429dff;
+      --font-display: Inter, Arial, sans-serif;
+      --font-body: Inter, system-ui, -apple-system, sans-serif;
+      --font-mono: "Space Mono", "Roobert mono", ui-monospace, monospace;
+      --text-xs: 12px;
+      --text-sm: 14px;
+      --text-base: 16px;
+      --text-lg: 20px;
+      --text-xl: 24px;
+      --text-2xl: 36px;
+      --text-3xl: 48px;
+      --text-4xl: 60px;
+      --leading-body: 1.5;
+      --leading-tight: 1.1;
+      --tracking-display: -0.02em;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --space-12: 48px;
+      --space-16: 64px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 16px;
+      --radius-pill: 99rem;
+      --elev-flat: none;
+      --elev-ring: 0 0 0 1px var(--border);
+      --elev-raised: 0 20px 40px rgba(0, 20, 51, 0.08);
+      --focus-ring: 0 0 0 3px rgba(56, 89, 249, 0.25);
+      --motion-fast: 150ms;
+      --motion-base: 250ms;
+      --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+      --sidebar-width: 260px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--leading-body);
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+    }
+    ::selection { background: #1D2026; color: #fff; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      color: var(--accent-on);
+      font: 700 var(--text-xs) / 1 var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+    }
+    .sidebar-head {
+      padding: var(--space-6) var(--space-5);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .sidebar-brand {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-display);
+      color: var(--fg);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .sidebar-brand em {
+      font-style: normal;
+      color: var(--accent);
+    }
+    .sidebar-nav {
+      padding: var(--space-3) var(--space-3);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: 8px var(--space-3);
+      border-radius: var(--radius-md);
+      color: var(--fg-2);
+      font-size: var(--text-sm);
+      font-weight: 500;
+      text-decoration: none;
+      transition: background var(--motion-fast) var(--ease-standard), color var(--motion-fast) var(--ease-standard);
+    }
+    .nav-item:hover {
+      background: var(--surface-warm);
+      color: var(--fg);
+    }
+    .nav-item.active {
+      background: var(--fg);
+      color: var(--surface);
+    }
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+    .nav-item.active svg { opacity: 1; }
+    .nav-item:hover svg { opacity: 1; }
+    .nav-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex: 1;
+    }
+    .nav-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: var(--radius-pill);
+      background: var(--surface-warm);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .nav-section {
+      padding: var(--space-4) var(--space-3) var(--space-2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-family: var(--font-mono);
+    }
+    .sidebar-foot {
+      padding: var(--space-3) var(--space-3);
+      border-top: 1px solid var(--border-soft);
+    }
+    .user-card {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+    }
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-pill);
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--accent-on);
+      flex-shrink: 0;
+    }
+    .user-name {
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+    .user-role {
+      font-size: var(--text-xs);
+      color: var(--muted);
+    }
+
+    .main {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-4) var(--space-8);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-soft);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .topbar-left { display: flex; align-items: center; gap: var(--space-4); }
+    .topbar-right { display: flex; align-items: center; gap: var(--space-3); }
+    .page-title {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-display);
+      font-weight: 600;
+    }
+    .search-wrap { position: relative; }
+    .search-wrap svg {
+      position: absolute;
+      left: var(--space-3);
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 260px;
+      min-height: 40px;
+      padding: 0 var(--space-4) 0 36px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg);
+      color: var(--fg);
+      font: 400 var(--text-sm) / 1 var(--font-body);
+      transition: border-color var(--motion-fast) var(--ease-standard);
+    }
+    .search-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: var(--focus-ring);
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--fg);
+      cursor: pointer;
+      transition: background var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard);
+    }
+    .icon-btn:hover {
+      background: var(--surface-warm);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .icon-btn svg { width: 18px; height: 18px; }
+    .notif-dot {
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      background: var(--danger);
+      border: 2px solid var(--surface);
+    }
+    .icon-btn-wrap { position: relative; }
+
+    .content {
+      padding: var(--space-8);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-6);
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-4);
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5) var(--space-6);
+    }
+    .metric-label {
+      color: var(--muted);
+      font-size: var(--text-sm);
+      font-weight: 500;
+    }
+    .metric-value {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-display);
+      margin-block-start: var(--space-1);
+      font-weight: 600;
+    }
+    .metric-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-block-start: var(--space-2);
+      font-size: var(--text-sm);
+      font-weight: 600;
+    }
+    .metric-change.up { color: var(--success); }
+    .metric-change.down { color: var(--danger); }
+    .metric-change svg { width: 14px; height: 14px; }
+
+    .charts-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: var(--space-4);
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-5);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .card-title {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-display);
+      font-weight: 600;
+    }
+    .card-body { padding: var(--space-5); }
+
+    .chart-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-3);
+      height: 180px;
+      padding-block-end: var(--space-5);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .bar-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .bar {
+      width: 100%;
+      max-width: 36px;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      background: var(--accent);
+      opacity: 0.85;
+      transition: opacity var(--motion-fast) var(--ease-standard);
+    }
+    .bar:hover { opacity: 1; }
+    .bar-label {
+      font-size: var(--text-xs);
+      color: var(--muted);
+    }
+    .bar-value {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .donut-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-4);
+    }
+    .donut {
+      width: 140px;
+      height: 140px;
+      border-radius: var(--radius-pill);
+      background: conic-gradient(var(--accent) 0deg 220deg, var(--blue-light) 220deg 260deg, var(--border) 260deg 360deg);
+      position: relative;
+    }
+    .donut-hole {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .donut-value {
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      line-height: var(--leading-tight);
+      font-weight: 600;
+    }
+    .donut-label {
+      font-size: var(--text-xs);
+      color: var(--muted);
+    }
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      width: 100%;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-sm);
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      flex-shrink: 0;
+    }
+    .legend-val {
+      margin-left: auto;
+      color: var(--fg);
+      font-weight: 600;
+    }
+
+    .activity-list { display: flex; flex-direction: column; }
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-5);
+      border-bottom: 1px solid var(--border-soft);
+      transition: background var(--motion-fast) var(--ease-standard);
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-item:hover { background: var(--surface-warm); }
+    .activity-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: var(--radius-pill);
+      margin-block-start: 6px;
+      flex-shrink: 0;
+    }
+    .activity-content { flex: 1; }
+    .activity-text { font-size: var(--text-sm); }
+    .activity-text strong { font-weight: 600; }
+    .activity-time {
+      font-size: var(--text-xs);
+      color: var(--muted);
+      margin-block-start: 2px;
+    }
+
+    .metric-groups-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
+    }
+    .inner-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .inner-metric {
+      padding: var(--space-4) var(--space-5);
+      border-right: 1px solid var(--border-soft);
+    }
+    .inner-metric:last-child { border-right: 0; }
+    .inner-metric strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: var(--text-xl);
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-display);
+      font-weight: 600;
+    }
+    .inner-metric span {
+      color: var(--muted);
+      font-size: var(--text-sm);
+    }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: var(--space-3) var(--space-5);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--border-soft);
+      font-family: var(--font-mono);
+    }
+    td {
+      padding: var(--space-3) var(--space-5);
+      font-size: var(--text-sm);
+      border-bottom: 1px solid var(--border-soft);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface-warm); }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: 3px var(--space-3);
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-family: var(--font-mono);
+    }
+    .status-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-pill);
+    }
+    .status-badge.delivered { background: #f0fdf4; color: #16a34a; }
+    .status-badge.delivered::before { background: #16a34a; }
+    .status-badge.processing { background: #fffbeb; color: #d97706; }
+    .status-badge.processing::before { background: #d97706; }
+    .status-badge.pending { background: var(--blue-light); color: var(--accent); }
+    .status-badge.pending::before { background: var(--accent); }
+    .status-badge.cancelled { background: #fef2f2; color: #dc2626; }
+    .status-badge.cancelled::before { background: #dc2626; }
+    .amount {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      min-height: 40px;
+      padding: 0 var(--space-5);
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      font: 500 var(--text-sm) / 1 var(--font-body);
+      text-decoration: none;
+      cursor: pointer;
+      transition: background var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard), transform var(--motion-base) var(--ease-standard);
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-secondary { background: var(--surface); color: var(--fg); border-color: var(--border); box-shadow: var(--elev-ring); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media (max-width: 1100px) {
+      .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .charts-row { grid-template-columns: 1fr; }
+      .metric-groups-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .topbar { padding: var(--space-3) var(--space-4); }
+      .content { padding: var(--space-4); }
+      .metric-grid { grid-template-columns: 1fr; }
+      .search-input { width: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-head">
+    <a href="#" class="sidebar-brand">Clay</a>
+  </div>
+  <nav class="sidebar-nav">
+    <span class="nav-section">Main</span>
+    <a href="#" class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span class="nav-label">Dashboard</span>
+    </a>
+    <a href="#" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="nav-label">Audiences</span>
+      <span class="nav-badge">12</span>
+    </a>
+    <a href="#" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="nav-label">Data</span>
+    </a>
+    <a href="#" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <span class="nav-label">Campaigns</span>
+    </a>
+    <span class="nav-section">Workflows</span>
+    <a href="#" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="nav-label">Signals</span>
+    </a>
+    <a href="#" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="nav-label">History</span>
+    </a>
+    <span class="nav-section">Settings</span>
+    <a href="#" class="nav-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="nav-label">Settings</span>
+    </a>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="user-card">
+      <div class="user-avatar">JD</div>
+      <div>
+        <div class="user-name">James Decker</div>
+        <div class="user-role">Growth Admin</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-title">Dashboard</h1>
+    </div>
+    <div class="topbar-right">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" type="search" placeholder="Search contacts, companies&hellip;" />
+      </div>
+      <div class="icon-btn-wrap">
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <span class="notif-dot"></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Records enriched</div>
+        <div class="metric-value">1.2M</div>
+        <div class="metric-change up">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          +18.4%
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Audiences</div>
+        <div class="metric-value">342</div>
+        <div class="metric-change up">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          +8.1%
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Workflow runs</div>
+        <div class="metric-value">48.2k</div>
+        <div class="metric-change up">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          +22.7%
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Data sources</div>
+        <div class="metric-value">156</div>
+        <div class="metric-change up">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          +3
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Enrichment this week</h2>
+          <span class="tag">
+            <span style="width:6px;height:6px;border-radius:var(--radius-pill);background:var(--accent-on);display:inline-block"></span>
+            Live
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="chart-bars">
+            <div class="bar-group"><span class="bar-value">84k</span><div class="bar" style="height: 55%"></div><span class="bar-label">Mon</span></div>
+            <div class="bar-group"><span class="bar-value">112k</span><div class="bar" style="height: 72%"></div><span class="bar-label">Tue</span></div>
+            <div class="bar-group"><span class="bar-value">124k</span><div class="bar" style="height: 78%"></div><span class="bar-label">Wed</span></div>
+            <div class="bar-group"><span class="bar-value">158k</span><div class="bar" style="height: 100%"></div><span class="bar-label">Thu</span></div>
+            <div class="bar-group"><span class="bar-value">141k</span><div class="bar" style="height: 91%"></div><span class="bar-label">Fri</span></div>
+            <div class="bar-group"><span class="bar-value">98k</span><div class="bar" style="height: 63%"></div><span class="bar-label">Sat</span></div>
+            <div class="bar-group"><span class="bar-value">76k</span><div class="bar" style="height: 49%"></div><span class="bar-label">Sun</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Source mix</h2>
+        </div>
+        <div class="card-body">
+          <div class="donut-wrap">
+            <div class="donut">
+              <div class="donut-hole">
+                <span class="donut-value">44%</span>
+                <span class="donut-label">data</span>
+              </div>
+            </div>
+            <div class="donut-legend">
+              <div class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>Data providers<span class="legend-val">44%</span></div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--blue-light)"></span>AI research<span class="legend-val">28%</span></div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--border)"></span>CRM sync<span class="legend-val">18%</span></div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--muted)"></span>Other<span class="legend-val">10%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metric-groups-row">
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">System health</h2>
+        </div>
+        <div class="inner-metric-grid">
+          <div class="inner-metric"><strong>99.9%</strong><span>Uptime</span></div>
+          <div class="inner-metric"><strong>420ms</strong><span>Avg. response</span></div>
+          <div class="inner-metric"><strong>8.4k</strong><span>Integrations</span></div>
+        </div>
+        <div class="card-head" style="border-top:1px solid var(--border-soft);border-bottom:none;padding:var(--space-3) var(--space-5)">
+          <span style="font-size:var(--text-sm);color:var(--muted)">Last 30 days &middot; All regions</span>
+          <a href="#" style="color:var(--accent);font-size:var(--text-sm);font-weight:600;text-decoration:none">View details</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Recent activity</h2>
+        </div>
+        <div class="activity-list">
+          <div class="activity-item">
+            <span class="activity-dot" style="background:var(--success)"></span>
+            <div class="activity-content">
+              <div class="activity-text"><strong>Waterfall completed</strong> — 12k contacts enriched</div>
+              <div class="activity-time">12 min ago</div>
+            </div>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot" style="background:var(--accent)"></span>
+            <div class="activity-content">
+              <div class="activity-text"><strong>Signal fired</strong> — New funding round detected</div>
+              <div class="activity-time">43 min ago</div>
+            </div>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot" style="background:var(--success)"></span>
+            <div class="activity-content">
+              <div class="activity-text"><strong>CRM sync</strong> completed for Salesforce</div>
+              <div class="activity-time">2 hr ago</div>
+            </div>
+          </div>
+          <div class="activity-item">
+            <span class="activity-dot" style="background:var(--warn)"></span>
+            <div class="activity-content">
+              <div class="activity-text"><strong>Credits low</strong> — Apollo remaining 18%</div>
+              <div class="activity-time">3 hr ago</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">Recent workflows</h2>
+        <a href="#" class="btn btn-primary">View all</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Workflow</th><th>Audience</th><th>Source</th><th>Records</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fundraise signal → Slack</td><td>Enterprise SaaS</td><td>Crunchbase + LLM</td><td class="amount">12,450</td><td><span class="status-badge delivered">Complete</span></td></tr>
+            <tr><td>ICP scoring waterfall</td><td>Mid-market</td><td>Apollo, Clearbit</td><td class="amount">84,200</td><td><span class="status-badge processing">Running</span></td></tr>
+            <tr><td>LinkedIn ad audience sync</td><td>Product managers</td><td>LinkedIn</td><td class="amount">31,800</td><td><span class="status-badge delivered">Complete</span></td></tr>
+            <tr><td>New hire intent lookup</td><td>Hiring signals</td><td>Claygent</td><td class="amount">5,620</td><td><span class="status-badge pending">Queued</span></td></tr>
+            <tr><td>Outbound email sequence</td><td>Series A+ startups</td><td>Clay + SendGrid</td><td class="amount">18,900</td><td><span class="status-badge cancelled">Paused</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
