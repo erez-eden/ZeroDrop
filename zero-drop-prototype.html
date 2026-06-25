@@ -286,6 +286,10 @@ body {
 .metric-card.accent {
   border-left: 3px solid var(--accent);
 }
+.metric-card.recovered {
+  border-left: 3px solid var(--success);
+  background: linear-gradient(135deg, var(--surface) 0%, #F0FDF4 100%);
+}
 .metric-label {
   font-size: 13px; color: var(--text-muted); font-weight: 500;
 }
@@ -293,6 +297,9 @@ body {
   font-family: var(--font-body);
   font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
   margin-top: var(--space-xs);
+}
+.metric-subtitle {
+  font-size: 12px; color: var(--text-muted); margin-top: var(--space-xs);
 }
 .metric-change {
   display: inline-flex; align-items: center; gap: 4px;
@@ -1285,6 +1292,33 @@ function renderDashboardFull(area) {
         </div>
       </div>
     </div>
+    <div class="metric-grid" style="margin-top:var(--space-lg)">
+      <div class="metric-card">
+        <div class="metric-label">Transactions</div>
+        <div class="metric-value" id="statTransactions">0</div>
+        <div class="metric-subtitle">total processed</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Volume</div>
+        <div class="metric-value" id="statVolume">₪0</div>
+        <div class="metric-subtitle">transaction amount</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Success Rate</div>
+        <div class="metric-value" id="statSuccessRate">—</div>
+        <div class="metric-subtitle">cleared + rescued</div>
+      </div>
+      <div class="metric-card accent">
+        <div class="metric-label">Rescued</div>
+        <div class="metric-value" id="statRescued">0</div>
+        <div class="metric-subtitle">saved by failover retry</div>
+      </div>
+      <div class="metric-card recovered">
+        <div class="metric-label">Recovered</div>
+        <div class="metric-value" id="statRecovered">₪0</div>
+        <div class="metric-subtitle">insurance value (rescued ₪)</div>
+      </div>
+    </div>
   `;
   renderGatewayRow();
   renderDashboard();
@@ -1339,6 +1373,23 @@ function renderDashboard() {
   }
   const countEl = document.getElementById('streamCount');
   if (countEl) countEl.textContent = state.checkouts.length + ' transactions';
+  updateStatsBar();
+}
+
+function updateStatsBar() {
+  const total = state.checkouts.length;
+  const cleared = state.checkouts.filter(c => c.finalStatus === 'cleared').length;
+  const rescued = state.checkouts.filter(c => c.finalStatus === 'rescued').length;
+  const successRate = total > 0 ? ((cleared + rescued) / total * 100) : 0;
+  const recovered = state.checkouts.filter(c => c.finalStatus === 'rescued').reduce((s, c) => s + c.amount, 0);
+
+  const el = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString('en-US');
+  if (el('statTransactions')) el('statTransactions').textContent = fmt(total);
+  if (el('statVolume')) el('statVolume').textContent = '₪' + fmt(state.totalGMV);
+  if (el('statSuccessRate')) el('statSuccessRate').textContent = total > 0 ? successRate.toFixed(1) + '%' : '—';
+  if (el('statRescued')) el('statRescued').textContent = fmt(rescued);
+  if (el('statRecovered')) el('statRecovered').textContent = '₪' + fmt(recovered);
 }
 
 function buildPathHtml(c) {
