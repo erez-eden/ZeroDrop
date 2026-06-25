@@ -2,10 +2,10 @@
 version: alpha
 name: ZeroDrop
 description: >
-  Precision data infrastructure for modern revenue teams.
-  ZeroDrop combines radical reliability with fluid, intent-driven workflows.
+  Master payment gateway aggregator for Israeli eCommerce.
+  Single-contract, multi-gateway failover routing with automated insurance.
   The visual language is clean, technical, and trustworthy — built around
-  the idea of a single drop of clarity in a complex data pipeline.
+  the idea of a single drop of clarity in a complex payment pipeline.
 
 colors:
   background: "#FFFFFF"
@@ -137,14 +137,14 @@ components:
 
 ## Overview
 
-ZeroDrop is a precision data platform. The interface should feel exact,
-fast, and calm under complexity. Every element is intentional; nothing
-is decorative for its own sake.
+ZeroDrop is a master payment gateway aggregator. The interface should feel exact,
+fast, and calm under complexity — routing billions in transactions while making
+every routing decision visible and traceable.
 
 - **Visual style:** minimal, technical, fluid
 - **Color stance:** high-contrast neutrals with a single cyan "drop" accent
 - **Design intent:** Reduce cognitive load. Use whitespace, clear hierarchy,
-  and restrained color to guide users through dense data workflows.
+  and restrained color to guide operators through high-stakes payment operations.
 
 ## Colors
 
