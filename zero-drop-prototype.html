@@ -906,6 +906,18 @@ function fmt(n) {
   if (n >= 1000) return '₪' + (n / 1000).toFixed(1) + 'k';
   return '₪' + n.toFixed(0);
 }
+function endOfNextMonth() {
+  const d = new Date();
+  const month = d.getMonth() + 2; // next month (0-indexed, +2 = month after next)
+  const year = d.getFullYear();
+  const lastDay = new Date(month > 12 ? year + 1 : year, month > 12 ? month - 12 : month, 0);
+  return lastDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function endOfMonth() {
+  const d = new Date();
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return lastDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 function gatewayHealth(st) {
   if (st === 'down') return 'down';
   if (st === 'degraded') return 'degraded';
@@ -1003,9 +1015,15 @@ state.checkouts.unshift(result);
     state.claimableGMV += amount;
   }
 
+  let claimStatus = 'settled';
+  if (result.finalStatus === 'rescued') claimStatus = 'covered';
+  if (result.finalStatus === 'declined') claimStatus = 'pending';
+  const needsInsurance = result.finalStatus === 'rescued' || result.finalStatus === 'declined';
   state.ledger.unshift({
     ...result,
-    claimStatus: result.finalStatus === 'declined' ? 'pending' : 'settled'
+    claimStatus,
+    payoutDate: needsInsurance ? endOfNextMonth() : null,
+    claimFiledAt: null
   });
 
   if (state.currentView === 'dashboard') { animateRoutingV2(result); }
@@ -1272,7 +1290,7 @@ function renderView(view) {
 // --- DASHBOARD ---
 function renderDashboardFull(area) {
   area.innerHTML = `
-    <div class="metric-grid" style="margin-bottom:var(--space-lg)">
+    <div class="metric-grid" style="margin-bottom:var(--space-lg);grid-template-columns:repeat(6,1fr)">
       <div class="metric-card">
         <div class="metric-label">Transactions</div>
         <div class="metric-value" id="statTransactions">0</div>
@@ -1296,7 +1314,12 @@ function renderDashboardFull(area) {
       <div class="metric-card recovered">
         <div class="metric-label">Recovered</div>
         <div class="metric-value" id="statRecovered">₪0</div>
-        <div class="metric-subtitle">insurance value (rescued ₪)</div>
+        <div class="metric-subtitle">auto-covered next month</div>
+      </div>
+      <div class="metric-card" style="border-left:3px solid var(--warning)">
+        <div class="metric-label">Claims Pending</div>
+        <div class="metric-value" id="statClaimsPending">0</div>
+        <div class="metric-subtitle">declined awaiting claim</div>
       </div>
     </div>
     <div class="dash-section">
@@ -1382,6 +1405,7 @@ function updateStatsBar() {
   const rescued = state.checkouts.filter(c => c.finalStatus === 'rescued').length;
   const cleared = state.checkouts.filter(c => c.finalStatus === 'cleared').length;
   const successRate = total > 0 ? ((cleared + rescued) / total * 100) : 0;
+  const claimsPending = state.ledger.filter(l => l.finalStatus === 'declined' && l.claimStatus === 'pending').length;
 
   const el = id => document.getElementById(id);
   const fmt = n => n.toLocaleString('en-US');
@@ -1390,6 +1414,7 @@ function updateStatsBar() {
   if (el('statSuccessRate')) el('statSuccessRate').textContent = total > 0 ? successRate.toFixed(1) + '%' : '—';
   if (el('statRescued')) el('statRescued').textContent = fmt(rescued);
   if (el('statRecovered')) el('statRecovered').textContent = '₪' + fmt(state.rescuedGMV);
+  if (el('statClaimsPending')) el('statClaimsPending').textContent = claimsPending;
 }
 
 function buildPathHtml(c) {
@@ -1429,6 +1454,18 @@ function showTransactionModal(txnId) {
 
   const statusMap = { cleared: 'Cleared', rescued: 'Rescued (retry)', declined: 'Declined' };
   const routeCount = c.laps.reduce((s, lap) => s + lap.attempts.length, 0);
+  const isDeclined = c.finalStatus === 'declined';
+  const needsInsurance = c.finalStatus === 'rescued' || isDeclined;
+
+  let statusBadge = '';
+  if (c.finalStatus === 'rescued') statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFEFF;color:#0891B2;font-family:var(--font-mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-left:6px">★ Covered</span>';
+  if (isDeclined) statusBadge = '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#FEF2F2;color:#B91C1C;font-family:var(--font-mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-left:6px">★ Insured</span>';
+
+  let insuranceRow = '';
+  if (needsInsurance) {
+    const payoutNote = c.finalStatus === 'rescued' ? 'Auto-settled — Payout by ' + endOfNextMonth() : (isDeclined ? 'Requires claim — Payout by ' + endOfNextMonth() : '');
+    insuranceRow = `<div class="modal-row"><span class="label">Insurance</span><span class="value" style="font-size:12px;color:var(--text-muted)">${payoutNote}</span></div>`;
+  }
 
   overlay.innerHTML = `
     <div class="modal-box">
@@ -1436,11 +1473,12 @@ function showTransactionModal(txnId) {
       <div class="modal-row"><span class="label">Order</span><span class="value mono">${c.orderId}</span></div>
       <div class="modal-row"><span class="label">Customer</span><span class="value">${c.customer}</span></div>
       <div class="modal-row"><span class="label">Amount</span><span class="value">₪${c.amount}</span></div>
-      <div class="modal-row"><span class="label">Status</span><span class="value">${statusMap[c.finalStatus] || c.finalStatus} ${c.rescued ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFEFF;color:#0891B2;font-family:var(--font-mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-left:6px">★ Recovered</span>' : ''}</span></div>
+      <div class="modal-row"><span class="label">Status</span><span class="value">${statusMap[c.finalStatus] || c.finalStatus} ${statusBadge}</span></div>
       <div class="modal-row"><span class="label">Final Gateway</span><span class="value mono">${c.finalGateway || '—'}</span></div>
       <div class="modal-row"><span class="label">Routes Tried</span><span class="value">${routeCount}</span></div>
       <div class="modal-row"><span class="label">Laps</span><span class="value">${c.laps.length}</span></div>
-      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee} (${c.rescued ? '2% rescue rate' : '1% standard rate'})</span></div>${c.rescued ? '<div style="padding:0 0 var(--space-sm);font-size:11px;color:var(--text-muted);text-align:right;border-bottom:1px solid var(--border-subtle)">Standard routing is 1%. Rescued transactions are charged at 2%.</div>' : ''}
+      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee} (${needsInsurance ? '2% insurance rate' : '1% standard rate'})</span></div>${needsInsurance ? '<div style="padding:0 0 var(--space-sm);font-size:11px;color:var(--text-muted);text-align:right;border-bottom:1px solid var(--border-subtle)">Standard routing is 1%. Insurance-covered transactions are charged at 2%.</div>' : ''}
+      ${insuranceRow}
       <div class="modal-row"><span class="label">Timestamp</span><span class="value mono" style="font-size:12px">${c.timestamp}</span></div>
       <button class="btn btn-secondary modal-close" onclick="document.getElementById('txnModal').classList.remove('open')">Close</button>
     </div>`;
@@ -1453,6 +1491,8 @@ function renderBilling(area) {
   const rescuedDeg = state.totalGMV > 0 ? (state.rescuedGMV / state.totalGMV) * 360 : 0;
   const claimDeg = state.claimableGMV > 0 ? (state.claimableGMV / state.totalGMV) * 360 : 0;
   const clearedDeg = Math.max(0, 360 - rescuedDeg - claimDeg);
+  const pendingClaims = state.ledger.filter(l => l.finalStatus === 'declined' && l.claimStatus === 'pending').length;
+  const nextPayout = state.rescuedGMV + state.claimableGMV;
 
   area.innerHTML = `
     <div class="metric-grid">
@@ -1461,25 +1501,25 @@ function renderBilling(area) {
         <div class="metric-value">${fmt(state.totalGMV)}</div>
         <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> All handled</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card accent">
         <div class="metric-label">Rescued GMV</div>
         <div class="metric-value">${fmt(state.rescuedGMV)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${rescuedPct}% of total</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${rescuedPct}% of total — auto-covered</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Claimable Lost</div>
+        <div class="metric-label">Declined GMV</div>
         <div class="metric-value" style="color:var(--danger)">${fmt(state.claimableGMV)}</div>
-        <div class="metric-change down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> ${state.ledger.length} txns</div>
-      </div>
-      <div class="metric-card accent">
-        <div class="metric-label">Total Bill (1% / 2% fee)</div>
-        <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalBill)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${state.checkouts.length} txns — 1% standard / 2% rescue</div>
+        <div class="metric-change down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> ${pendingClaims} claims pending</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Insurance Coverage</div>
-        <div class="metric-value">${fmt(500000)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> Active policy</div>
+        <div class="metric-label">Total Bill (1% / 2%)</div>
+        <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalBill)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${state.checkouts.length} txns processed</div>
+      </div>
+      <div class="metric-card recovered">
+        <div class="metric-label">Next Month Payout</div>
+        <div class="metric-value">${fmt(nextPayout)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> insured amount due ${endOfNextMonth()}</div>
       </div>
     </div>
     <div class="charts-row">
@@ -1520,30 +1560,31 @@ function renderWeeklyChart() {
 function renderLedger(area) {
   const total = state.ledger.length;
   const declined = state.ledger.filter(l => l.finalStatus === 'declined').length;
-  const settled = state.ledger.filter(l => l.claimStatus === 'settled').length;
+  const pending = state.ledger.filter(l => l.finalStatus === 'declined' && (l.claimStatus === 'pending' || l.claimStatus === 'filed')).length;
+  const payoutGMV = state.ledger.filter(l => l.finalStatus === 'rescued' || (l.finalStatus === 'declined' && l.claimStatus !== 'pending')).reduce((s, l) => s + l.amount, 0);
   area.innerHTML = `
     <div class="metric-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-lg)">
       <div class="metric-card">
         <div class="metric-label">Transactions</div>
         <div class="metric-value">${total}</div>
-        <div class="metric-subtitle">${declined} unrecoverable</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Claimable Lost GMV</div>
-        <div class="metric-value" style="color:var(--danger)">${fmt(state.claimableGMV)}</div>
-        <div class="metric-subtitle">declined transactions</div>
+        <div class="metric-subtitle">${declined} declined | ${total - declined} settled</div>
       </div>
       <div class="metric-card accent">
-        <div class="metric-label">Settled</div>
-        <div class="metric-value" style="color:var(--success)">${settled}</div>
-        <div class="metric-subtitle">transactions reconciled</div>
+        <div class="metric-label">Pending Claims</div>
+        <div class="metric-value" style="color:${pending > 0 ? 'var(--warning)' : 'var(--success)'}">${pending}</div>
+        <div class="metric-subtitle">awaiting action</div>
+      </div>
+      <div class="metric-card recovered">
+        <div class="metric-label">Next Month Payout</div>
+        <div class="metric-value">${fmt(payoutGMV)}</div>
+        <div class="metric-subtitle">insured amount due ${endOfNextMonth()}</div>
       </div>
     </div>
     <div class="card">
       <div class="card-head"><h2 class="card-title">Reconciliation Ledger</h2></div>
       <div class="card-body zero"><div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Amount</th><th>Fee</th><th>Gateways Attempted</th><th>Retry Laps</th><th>Status</th></tr></thead>
+          <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Amount</th><th>Fee</th><th>Gateways Attempted</th><th>Retry Laps</th><th>Insurance</th></tr></thead>
           <tbody id="ledgerBody"></tbody>
         </table>
       </div></div>
@@ -1565,31 +1606,44 @@ function renderLedgerBody() {
     const isRescued = l.finalStatus === 'rescued';
     let statusHtml = '';
     if (isDeclined) {
-      const order = ['pending','filed','settled'];
-      const cur = order.indexOf(l.claimStatus);
-      statusHtml = `<button class="claim-btn ${l.claimStatus}" onclick="cycleClaim(${i})">${l.claimStatus.toUpperCase()}</button>`;
+      if (l.claimStatus === 'pending') {
+        statusHtml = `<button class="claim-btn pending" onclick="fileClaim(${i})">File Claim</button>`;
+      } else if (l.claimStatus === 'filed') {
+        statusHtml = `<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Filed</span><span style="font-size:10px;color:var(--text-muted);white-space:nowrap">Payout by ${l.payoutDate || endOfNextMonth()}</span></span>`;
+      } else {
+        statusHtml = `<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F0FDF4;color:#15803D;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Settled</span><span style="font-size:10px;color:var(--text-muted);white-space:nowrap">Paid ${l.claimFiledAt || l.timestamp}</span></span>`;
+      }
     } else if (isRescued) {
-      statusHtml = '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFEFF;color:#0891B2;font-family:var(--font-mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">★ Recovered</span>';
+      statusHtml = `<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFEFF;color:#0891B2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">★ Covered</span><span style="font-size:10px;color:var(--text-muted);white-space:nowrap">Auto-settled — Payout by ${l.payoutDate || endOfNextMonth()}</span></span>`;
     } else {
-      statusHtml = '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F0FDF4;color:#15803D;font-family:var(--font-mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Settled</span>';
+      statusHtml = '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F0FDF4;color:#15803D;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Settled</span>';
     }
     return `<tr>
       <td style="font-family:var(--font-mono);font-size:12px">${l.timestamp}</td>
       <td style="font-family:var(--font-mono)">${l.orderId}</td>
       <td>${l.customer}</td>
       <td class="amount">₪${l.amount}</td>
-      <td class="amount fee">₪${l.fee}</td>
+      <td class="amount fee">₪${l.fee} (${isRescued || isDeclined ? '2%' : '1%'})</td>
       <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${gws}</td>
       <td style="font-family:var(--font-mono)">${laps} lap${laps!==1?'s':''}</td>
-      <td>${statusHtml}</td>
+      <td style="text-align:right">${statusHtml}</td>
     </tr>`;
   }).join('');
 }
-function cycleClaim(i) {
-  const order = ['pending','filed','settled'];
-  const cur = order.indexOf(state.ledger[i].claimStatus);
-  state.ledger[i].claimStatus = order[(cur + 1) % 3];
+function fileClaim(i) {
+  const entry = state.ledger[i];
+  if (!entry || entry.finalStatus !== 'declined' || entry.claimStatus !== 'pending') return;
+  entry.claimStatus = 'filed';
+  entry.claimFiledAt = now();
   renderLedgerBody();
+  updateLedgerBadge();
+}
+function cycleClaim(i) {
+  const entry = state.ledger[i];
+  if (!entry || entry.finalStatus !== 'declined' || entry.claimStatus !== 'filed') return;
+  entry.claimStatus = 'settled';
+  renderLedgerBody();
+  updateLedgerBadge();
 }
 
 // --- SETTINGS ---
@@ -1644,17 +1698,18 @@ function savePreferred() {
 // ===== LOGIN =====
 function seedMockData() {
   const customers = ['Sarah Chen','Marcus Webb','Elena Voss','Daniel Park','Amira Hassan'];
-  const amounts = [150, 340, 520, 99, 720, 250, 189, 450, 120, 600];
+  const amounts = [150, 340, 520, 99, 720, 250, 189, 450];
   const gwList = ['Hyp', 'CreditGuard', 'Tranzila', 'Grow'];
   for (let i = 0; i < 8; i++) {
-    const amt = amounts[i % amounts.length];
+    const amt = amounts[i];
     const cust = customers[i % customers.length];
     const orderId = '#SHOP-' + rand(1000, 9999);
-    const isRescued = i >= 5;
-    const isDeclined = i >= 7;
+    const isRescued = i >= 4 && i < 6;
+    const isDeclined = i >= 6;
+    const isDeclinedFiled = i === 7;
     const laps = [];
     if (isDeclined) {
-      laps.push({ num: 1, attempts: gwList.map(g => ({ gw: g, result: 'fail' })) });
+      laps.push({ num: 1, attempts: gwList.map((g, idx) => ({ gw: g, result: idx < 3 ? 'fail' : 'fail' })) });
       laps.push({ num: 2, attempts: gwList.map(g => ({ gw: g, result: 'fail' })) });
       laps.push({ num: 3, attempts: gwList.map(g => ({ gw: g, result: 'fail' })) });
     } else if (isRescued) {
@@ -1665,12 +1720,16 @@ function seedMockData() {
     const finalStatus = isDeclined ? 'declined' : (isRescued ? 'rescued' : 'cleared');
     const rescued = isRescued;
     const finalGateway = isDeclined ? null : (isRescued ? 'Grow' : 'Hyp');
-    const fee = Math.round(amt * (rescued ? 0.02 : 0.01));
+    const fee = Math.round(amt * (isRescued || isDeclined ? 0.02 : 0.01));
+    const needsInsurance = isRescued || isDeclined;
+    let claimStatus = 'settled';
+    if (isRescued) claimStatus = 'covered';
+    if (isDeclined) claimStatus = isDeclinedFiled ? 'filed' : 'pending';
     const txn = {
       txnId: -(i + 1),
       orderId, customer: cust, amount: amt, preferred: 'Hyp',
       finalGateway, finalStatus, rescued,
-      laps, timestamp: ago((i + 1) * 5),
+      laps, timestamp: ago((i + 1) * 7),
       fee
     };
     state.checkouts.push(txn);
@@ -1680,7 +1739,9 @@ function seedMockData() {
     if (isDeclined) state.claimableGMV += amt;
     state.ledger.unshift({
       ...txn,
-      claimStatus: isDeclined ? 'pending' : 'settled'
+      claimStatus,
+      payoutDate: needsInsurance ? endOfNextMonth() : null,
+      claimFiledAt: isDeclinedFiled ? ago(10) : null
     });
   }
 }
