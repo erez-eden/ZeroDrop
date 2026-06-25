@@ -953,7 +953,7 @@ function routeCheckout(amount, customer, orderId) {
 
   const hardFails = new Set();
 
-  const lapRates = [0.18, 0.25, 0.30];
+  const lapRates = [0.55, 0.20, 0.10];
 
   for (let li = 0; li < 3; li++) {
     if (finalGateway) break;
@@ -1378,10 +1378,9 @@ function renderDashboard() {
 
 function updateStatsBar() {
   const total = state.checkouts.length;
-  const cleared = state.checkouts.filter(c => c.finalStatus === 'cleared').length;
   const rescued = state.checkouts.filter(c => c.finalStatus === 'rescued').length;
+  const cleared = state.checkouts.filter(c => c.finalStatus === 'cleared').length;
   const successRate = total > 0 ? ((cleared + rescued) / total * 100) : 0;
-  const recovered = state.checkouts.filter(c => c.finalStatus === 'rescued').reduce((s, c) => s + c.amount, 0);
 
   const el = id => document.getElementById(id);
   const fmt = n => n.toLocaleString('en-US');
@@ -1389,7 +1388,7 @@ function updateStatsBar() {
   if (el('statVolume')) el('statVolume').textContent = '₪' + fmt(state.totalGMV);
   if (el('statSuccessRate')) el('statSuccessRate').textContent = total > 0 ? successRate.toFixed(1) + '%' : '—';
   if (el('statRescued')) el('statRescued').textContent = fmt(rescued);
-  if (el('statRecovered')) el('statRecovered').textContent = '₪' + fmt(recovered);
+  if (el('statRecovered')) el('statRecovered').textContent = '₪' + fmt(state.rescuedGMV);
 }
 
 function buildPathHtml(c) {
