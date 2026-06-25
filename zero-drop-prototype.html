@@ -367,12 +367,6 @@ body {
 }
 
 /* ===== Gateway Cards ===== */
-.gateway-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-md);
-  margin-bottom: var(--space-lg);
-}
 .gateway-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -591,54 +585,77 @@ td.amount.fee { color: var(--secondary); }
 }
 .activity-row.new { animation: slideIn 0.3s ease-out; }
 
-/* ===== Routing Pipeline ===== */
-.pipeline { position: relative; padding: var(--space-lg) 0; overflow: hidden; min-height: 200px; }
-.pipeline-nodes { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-md); position: relative; z-index: 1; }
-.pipeline-node {
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-xs);
-  width: 120px; text-align: center;
+/* ===== Dashboard: Cart + Gateway Row ===== */
+.dash-section { margin-bottom: var(--space-lg); }
+
+.cart-card {
+  width: 240px; margin: 0 auto var(--space-md);
+  background: var(--primary); color: var(--text-on-primary);
+  border-radius: var(--radius-lg); padding: var(--space-lg);
+  text-align: center; position: relative;
 }
-.pipeline-node-icon {
-  width: 48px; height: 48px; border-radius: var(--radius-lg);
+.cart-card-label {
+  font-family: var(--font-mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  opacity: 0.7; margin-bottom: var(--space-xs);
+}
+.cart-card-count {
+  font-size: 36px; font-weight: 700; letter-spacing: -0.02em;
+}
+.cart-card-hint {
+  font-size: 12px; opacity: 0.5; margin-top: var(--space-xs);
+}
+
+.gateway-row {
+  display: flex; align-items: stretch; justify-content: center;
+  gap: 0; position: relative;
+}
+.gateway-row .gateway-card {
+  flex: 0 0 220px;
+  position: relative;
+  transition: box-shadow 0.2s, transform 0.1s;
+}
+.gateway-row .gateway-card.flash-pass {
+  box-shadow: 0 0 0 3px var(--success), 0 0 24px rgba(34,197,94,0.25);
+  transform: scale(1.02);
+}
+.gateway-row .gateway-card.flash-fail {
+  box-shadow: 0 0 0 3px var(--danger), 0 0 24px rgba(239,68,68,0.25);
+  transform: scale(0.98);
+}
+.gw-connector {
   display: flex; align-items: center; justify-content: center;
-  background: var(--surface); border: 2px solid var(--border);
-  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.04em;
-  transition: border-color 0.3s, background 0.3s, color 0.3s;
+  width: 32px; flex-shrink: 0;
+  color: var(--border); font-size: 16px; font-weight: 700;
 }
-.pipeline-node-icon.start { background: var(--primary); border-color: var(--primary); color: var(--text-on-primary); border-radius: var(--radius-pill); }
-.pipeline-node-icon.end { background: var(--surface); border: 2px dashed var(--border); color: var(--text-muted); }
-.pipeline-node-label { font-size: 12px; font-weight: 600; color: var(--text); }
-.pipeline-node-sublabel { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
-.pipeline-connector {
-  flex: 1; height: 2px; background: var(--border);
-  min-width: 24px; position: relative; top: -12px;
+.gw-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  border-radius: var(--radius-lg);
+  opacity: 0; transition: opacity 0.25s; pointer-events: none;
+  z-index: 5;
 }
-.pipeline-packets {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none; z-index: 2;
-}
-.packet {
-  position: absolute;
-  width: 40px; height: 40px;
+.gw-overlay.show { opacity: 1; }
+.gw-overlay.cleared { background: rgba(240,253,244,0.95); color: #15803D; }
+.gw-overlay.saved { background: rgba(236,254,255,0.95); color: #0891B2; }
+.gw-overlay.lost { background: rgba(254,242,242,0.95); color: #B91C1C; }
+
+.routing-packet {
+  position: fixed; z-index: 999; pointer-events: none;
+  width: 48px; height: 48px;
   border-radius: var(--radius-md);
-  background: var(--surface);
-  border: 2px solid var(--border);
+  background: var(--surface); border: 2px solid var(--secondary);
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 13px; font-weight: 700;
-  transition: all 0.4s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 0 4px 12px rgba(15,23,42,0.08);
+  font-family: var(--font-mono); font-size: 14px; font-weight: 700;
+  color: var(--secondary);
+  box-shadow: 0 8px 24px rgba(15,23,42,0.18);
+  transition: left 0.3s cubic-bezier(0.2,0,0,1), top 0.3s cubic-bezier(0.2,0,0,1), border-color 0.2s, background 0.2s, color 0.2s, opacity 0.2s;
 }
-.packet.success { border-color: var(--success); background: #F0FDF4; color: var(--success); }
-.packet.fail { border-color: var(--danger); background: #FEF2F2; color: var(--danger); }
-.packet.rescued { border-color: var(--accent); background: #ECFEFF; color: #0891B2; }
-.packet.flying { border-color: var(--secondary); background: #F0F9FF; color: var(--secondary); }
-.packet-tooltip {
-  position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
-  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
-  white-space: nowrap; opacity: 0; transition: opacity 0.2s;
-}
-.packet:hover .packet-tooltip { opacity: 1; }
+.routing-packet.cleared { border-color: var(--success); background: #F0FDF4; color: #15803D; }
+.routing-packet.saved { border-color: var(--accent); background: #ECFEFF; color: #0891B2; }
+.routing-packet.lost { border-color: var(--danger); background: #FEF2F2; color: #B91C1C; }
 
 /* ===== Stats Row ===== */
 .stats-row {
@@ -681,14 +698,12 @@ td.amount.fee { color: var(--secondary); }
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
   .metric-grid { grid-template-columns: repeat(3, 1fr); }
-  .gateway-grid { grid-template-columns: repeat(2, 1fr); }
   .charts-row { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
   .sidebar { display: none; }
   .metric-grid { grid-template-columns: 1fr; }
-  .gateway-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -939,131 +954,166 @@ function processCheckout() {
     });
   }
 
-  if (state.currentView === 'dashboard') { renderDashboard(); animatePacket(result); }
+  if (state.currentView === 'dashboard') { animateRoutingV2(result); }
   updateLedgerBadge();
 }
 
-// ===== PIPELINE ANIMATION =====
-function animatePacket(result) {
-  const container = document.getElementById('pipelinePackets');
-  if (!container) return;
-  const pipeline = document.getElementById('pipeline');
-  if (!pipeline) return;
+// ===== ROUTING ANIMATION V2: Cart → Gateway Row =====
+function animateRoutingV2(result) {
+  const cart = document.getElementById('cartCard');
+  const row = document.getElementById('gatewayRow');
+  if (!cart || !row) { renderDashboard(); updateCartCounter(); return; }
 
-  const countEl = document.getElementById('pipelineCount');
-  if (countEl) countEl.textContent = (parseInt(countEl.textContent) + 1) + ' processed';
+  // Get cart bottom-center (packet start position)
+  const cr = cart.getBoundingClientRect();
+  const startX = cr.left + cr.width / 2;
+  const startY = cr.bottom + 12;
 
-  // Get gateway node positions relative to pipeline
-  const gwNodes = GATEWAYS.map(g => {
-    const el = document.querySelector('[data-gw="' + g + '"]');
-    if (!el) return null;
+  // Get gateway card center positions
+  const posMap = {};
+  GATEWAYS.forEach(g => {
+    const el = document.getElementById('gwCard_' + g);
+    if (!el) return;
     const r = el.getBoundingClientRect();
-    const pr = pipeline.getBoundingClientRect();
-    return { gw: g, x: r.left - pr.left + r.width / 2, y: r.top - pr.top + r.height / 2 };
-  }).filter(Boolean);
+    posMap[g] = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
 
-  const startX = -30;
-  const startY = gwNodes.length > 0 ? gwNodes[0].y : 60;
-  const endX = pipeline.clientWidth + 30;
-
-  // Create packet element
+  // Create packet
   const pkt = document.createElement('div');
-  pkt.className = 'packet flying';
-  pkt.textContent = '₪' + result.amount;
+  pkt.className = 'routing-packet';
+  pkt.innerHTML = '₪' + result.amount;
   pkt.style.left = startX + 'px';
   pkt.style.top = startY + 'px';
-  pkt.style.transform = 'translate(-50%, -50%) scale(0.8)';
-  pkt.innerHTML = '₪' + result.amount + '<span class="packet-tooltip">' + result.orderId + '</span>';
-  container.appendChild(pkt);
+  pkt.style.transform = 'translate(-50%, -50%) scale(0.6)';
+  document.body.appendChild(pkt);
 
-  // Animate through each gateway in sequence
+  // Build ordered list of (gateway, isSuccess) steps from routing result
+  const steps = [];
+  let foundSuccess = false;
+  result.laps.forEach((lap, li) => {
+    if (foundSuccess) return;
+    if (li > 0) steps.push({ type: 'lap-pause', lap: lap.num });
+    let lapHasSuccess = false;
+    lap.attempts.forEach(a => {
+      if (foundSuccess || lapHasSuccess) return;
+      if (a.result === 'success') {
+        steps.push({ type: 'attempt', gw: a.gw, pass: true, lap: lap.num });
+        lapHasSuccess = true;
+        foundSuccess = true;
+      } else if (a.result === 'fail') {
+        steps.push({ type: 'attempt', gw: a.gw, pass: false, lap: lap.num });
+      } else if (a.result === 'skip-down') {
+        steps.push({ type: 'skip', gw: a.gw, lap: lap.num });
+      }
+    });
+  });
+
+  // Execute steps sequentially
   let totalDelay = 0;
-  const allAttempts = [];
-  result.laps.forEach(lap => {
-    lap.attempts.forEach(a => { allAttempts.push({ ...a, lap: lap.num }); });
-  });
+  let currentStep = 0;
+  const STEP_MS = 380;
+  const PAUSE_MS = 600;
 
-  // Build animation sequence
-  let sequence = [];
-  let gwIdx = 0;
-  allAttempts.forEach((a, i) => {
-    const node = gwNodes.find(n => n.gw === a.gw);
-    if (!node) return;
-    const isSuccess = a.result === 'success';
-    const isLast = i === allAttempts.length - 1;
-    sequence.push({ node, isSuccess, lap: a.lap, gw: a.gw, isLast });
-  });
+  function runStep() {
+    if (currentStep >= steps.length) {
+      // All steps done — finalize
+      finish();
+      return;
+    }
+    const step = steps[currentStep];
+    currentStep++;
 
-  // Execute sequence
-  let stepDelay = 500;
-  sequence.forEach((step, i) => {
-    const delay = totalDelay + (i * stepDelay);
+    if (step.type === 'lap-pause') {
+      // Brief return to cart for new lap
+      pkt.style.transition = 'all 0.3s cubic-bezier(0.2,0,0,1)';
+      pkt.style.left = startX + 'px';
+      pkt.style.top = (startY - 10) + 'px';
+      pkt.style.transform = 'translate(-50%, -50%) scale(0.6)';
+      totalDelay += 400;
+      setTimeout(runStep, PAUSE_MS);
+      return;
+    }
+
+    const pos = posMap[step.gw];
+    if (!pos) { setTimeout(runStep, 50); return; }
+
+    if (step.type === 'skip') {
+      // Fly to gateway briefly then continue
+      setTimeout(() => {
+        pkt.style.transition = 'all 0.25s cubic-bezier(0.2,0,0,1)';
+        pkt.style.left = pos.x + 'px';
+        pkt.style.top = pos.y + 'px';
+        pkt.style.transform = 'translate(-50%, -50%) scale(0.7)';
+        pkt.style.opacity = '0.5';
+      }, totalDelay);
+      totalDelay += 50;
+      setTimeout(() => { pkt.style.opacity = '1'; runStep(); }, STEP_MS + 50);
+      return;
+    }
+
+    // Normal attempt — fly to gateway
+    const delay = totalDelay;
     setTimeout(() => {
-      // Move to gateway
-      pkt.style.transition = 'all ' + (stepDelay - 100) + 'ms cubic-bezier(0.2, 0, 0, 1)';
-      pkt.style.left = step.node.x + 'px';
-      pkt.style.top = step.node.y + 'px';
+      pkt.style.transition = 'all 0.3s cubic-bezier(0.2,0,0,1)';
+      pkt.style.left = pos.x + 'px';
+      pkt.style.top = pos.y + 'px';
       pkt.style.transform = 'translate(-50%, -50%) scale(1)';
+      pkt.style.opacity = '1';
 
-      // Flash gateway node
-      const gwIcon = document.querySelector('[data-gw="' + step.gw + '"]');
-      if (gwIcon) {
-        gwIcon.style.transition = 'all 0.2s';
-        gwIcon.style.background = step.isSuccess ? '#F0FDF4' : '#FEF2F2';
-        gwIcon.style.borderColor = step.isSuccess ? 'var(--success)' : 'var(--danger)';
-        gwIcon.style.color = step.isSuccess ? 'var(--success)' : 'var(--danger)';
-        setTimeout(() => {
-          gwIcon.style.background = '';
-          gwIcon.style.borderColor = '';
-          gwIcon.style.color = '';
-        }, 400);
+      // Flash the gateway card
+      const card = document.getElementById('gwCard_' + step.gw);
+      if (card) {
+        card.classList.add(step.pass ? 'flash-pass' : 'flash-fail');
+        setTimeout(() => card.classList.remove('flash-pass', 'flash-fail'), 400);
       }
     }, delay);
-  });
+    totalDelay += STEP_MS;
+    setTimeout(runStep, STEP_MS);
+  }
 
-  totalDelay = sequence.length * stepDelay + 200;
+  function finish() {
+    // Color the packet
+    pkt.classList.remove('routing-packet');
+    if (result.finalStatus === 'cleared') pkt.classList.add('cleared');
+    else if (result.finalStatus === 'rescued') pkt.classList.add('saved');
+    else pkt.classList.add('lost');
 
-  // Final outcome
-  setTimeout(() => {
-    const outputEl = document.getElementById('pipelineOutput');
-    if (outputEl) {
-      outputEl.style.transition = 'all 0.3s';
-      if (result.finalStatus === 'cleared') {
-        pkt.className = 'packet success';
-        outputEl.style.background = '#F0FDF4';
-        outputEl.style.borderColor = 'var(--success)';
-        outputEl.textContent = 'CLEAR';
-        outputEl.style.color = 'var(--success)';
-      } else if (result.finalStatus === 'rescued') {
-        pkt.className = 'packet rescued';
-        outputEl.style.background = '#ECFEFF';
-        outputEl.style.borderColor = 'var(--accent)';
-        outputEl.textContent = 'SAVED';
-        outputEl.style.color = '#0891B2';
-      } else {
-        pkt.className = 'packet fail';
-        outputEl.style.background = '#FEF2F2';
-        outputEl.style.borderColor = 'var(--danger)';
-        outputEl.textContent = 'LOST';
-        outputEl.style.color = 'var(--danger)';
+    // Show overlay on the last gateway card
+    const lastGw = result.finalGateway || steps.filter(s => s.type === 'attempt').pop()?.gw;
+    if (lastGw) {
+      const card = document.getElementById('gwCard_' + lastGw);
+      if (card) {
+        let overlay = card.querySelector('.gw-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.className = 'gw-overlay';
+          card.appendChild(overlay);
+        }
+        const cls = result.finalStatus === 'cleared' ? 'cleared' : (result.finalStatus === 'rescued' ? 'saved' : 'lost');
+        const txt = result.finalStatus === 'cleared' ? 'CLEAR' : (result.finalStatus === 'rescued' ? 'SAVED' : 'LOST');
+        overlay.className = 'gw-overlay show ' + cls;
+        overlay.textContent = txt;
+        setTimeout(() => {
+          overlay.classList.remove('show');
+          setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 300);
+        }, 2000);
       }
-      // Reset output node
-      setTimeout(() => {
-        outputEl.style.background = '';
-        outputEl.style.borderColor = '';
-        outputEl.textContent = 'RESULT';
-        outputEl.style.color = '';
-      }, 1500);
     }
-  }, totalDelay);
 
-  // Remove packet after animation
-  setTimeout(() => {
-    pkt.style.transition = 'all 0.3s ease-out';
-    pkt.style.opacity = '0';
-    pkt.style.transform = 'translate(-50%, -50%) scale(0.5)';
-    setTimeout(() => pkt.remove(), 300);
-  }, totalDelay + 800);
+    // Fade out packet
+    setTimeout(() => {
+      pkt.style.opacity = '0';
+      pkt.style.transform = 'translate(-50%, -50%) scale(0.4)';
+      setTimeout(() => pkt.remove(), 300);
+    }, 400);
+
+    // Update activity feed and counter
+    updateCartCounter();
+    renderDashboard();
+  }
+
+  updateCartCounter();
+  setTimeout(runStep, 200);
 }
 
 // ===== FLASH SALE (FR-10) =====
@@ -1121,7 +1171,7 @@ function updateGatewayHealth() {
     if (gw.status === 'healthy') gw.uptime = Math.min(100, gw.uptime + randInt(0, 1));
   });
 
-  if (state.currentView === 'dashboard') renderGatewayCards();
+  if (state.currentView === 'dashboard') renderGatewayRow();
 }
 
 // ===== STREAM CONTROL =====
@@ -1178,89 +1228,61 @@ function renderView(view) {
 // --- DASHBOARD ---
 function renderDashboardFull(area) {
   area.innerHTML = `
-    <div class="gateway-grid" id="gatewayGrid"></div>
-    <div class="card">
-      <div class="card-head">
-        <h2 class="card-title">Routing Pipeline</h2>
-        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em" id="pipelineCount">0 in flight</span>
+    <div class="dash-section">
+      <div class="cart-card" id="cartCard">
+        <div class="cart-card-label">Incoming Checkout</div>
+        <div class="cart-card-count" id="cartCounter">0</div>
+        <div class="cart-card-hint">processed</div>
       </div>
-      <div class="card-body">
-        <div class="pipeline" id="pipeline">
-          <div class="pipeline-nodes">
-            <div class="pipeline-node">
-              <div class="pipeline-node-icon start">CART</div>
-              <div class="pipeline-node-label">Checkout</div>
-            </div>
-            <div class="pipeline-connector"></div>
-            <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Hyp">HYP</div>
-              <div class="pipeline-node-label">Hyp</div>
-            </div>
-            <div class="pipeline-connector"></div>
-            <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="CreditGuard">CRG</div>
-              <div class="pipeline-node-label">CreditGuard</div>
-            </div>
-            <div class="pipeline-connector"></div>
-            <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Tranzila">TRZ</div>
-              <div class="pipeline-node-label">Tranzila</div>
-            </div>
-            <div class="pipeline-connector"></div>
-            <div class="pipeline-node">
-              <div class="pipeline-node-icon" data-gw="Grow">GRW</div>
-              <div class="pipeline-node-label">Grow</div>
-            </div>
-            <div class="pipeline-connector"></div>
-            <div class="pipeline-node">
-              <div class="pipeline-node-icon end" id="pipelineOutput">RESULT</div>
-              <div class="pipeline-node-label">Outcome</div>
-            </div>
-          </div>
-          <div class="pipeline-packets" id="pipelinePackets"></div>
-        </div>
-      </div>
+      <div class="gateway-row" id="gatewayRow"></div>
     </div>
     <div class="card">
       <div class="card-head">
-        <h2 class="card-title">Live Checkout Stream</h2>
+        <h2 class="card-title">Completed Transactions</h2>
         <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em" id="streamCount">0 transactions</span>
       </div>
       <div class="card-body zero">
         <div class="activity-feed" id="activityFeed">
           <div style="padding:var(--space-2xl);text-align:center;color:var(--text-muted);font-size:14px">
-            Waiting for checkouts...
+            Waiting for completed checkouts...
           </div>
         </div>
       </div>
     </div>
   `;
-  renderGatewayCards();
+  renderGatewayRow();
   renderDashboard();
 }
-function renderGatewayCards() {
-  const grid = document.getElementById('gatewayGrid');
-  if (!grid) return;
-  grid.innerHTML = GATEWAYS.map(g => {
+function renderGatewayRow() {
+  const row = document.getElementById('gatewayRow');
+  if (!row) return;
+  row.innerHTML = GATEWAYS.map((g, i) => {
     const gw = state.gateways[g];
     const isPref = state.preferredGateway === g;
     const down = gw.forcedDown || gw.status === 'down';
     const degraded = gw.status === 'degraded';
     const statusClass = down ? 'down' : (degraded ? 'degraded' : 'healthy');
     const statusLabel = gw.forcedDown ? 'Forced Down' : (down ? 'Down' : (degraded ? 'Degraded' : 'Healthy'));
+    const connector = i < GATEWAYS.length - 1 ? '<div class="gw-connector">→</div>' : '';
     return `
-      <div class="gateway-card ${isPref ? 'preferred' : ''}">
+      <div class="gateway-card ${isPref ? 'preferred' : ''}" id="gwCard_${g}">
         <div class="gateway-name">${g}</div>
         <div class="gateway-status ${statusClass}">${statusLabel}</div>
         <div class="gateway-latency">${gw.latency ? gw.latency + 'ms' : '—'}</div>
         <div class="gateway-uptime">${gw.uptime}% uptime (1h)</div>
         <div class="gateway-actions">
           ${gw.forcedDown
-            ? '<button class="btn btn-success btn-sm" onclick="recoverGateway(\''+g+'\')">Recover</button>'
-            : '<button class="btn btn-danger btn-sm" onclick="simulateOutage(\''+g+'\')">Simulate Outage</button>'}
+            ? '<button class="btn btn-success btn-sm" onclick="recoverGatewayV2(\''+g+'\')">Recover</button>'
+            : '<button class="btn btn-danger btn-sm" onclick="simOutageV2(\''+g+'\')">Simulate Outage</button>'}
         </div>
-      </div>`;
+      </div>${connector}`;
   }).join('');
+}
+function simOutageV2(gw) { state.gateways[gw].forcedDown = true; renderGatewayRow(); }
+function recoverGatewayV2(gw) { state.gateways[gw].forcedDown = false; state.gateways[gw].status = 'healthy'; state.gateways[gw].latency = rand(60,180); renderGatewayRow(); }
+function updateCartCounter() {
+  const el = document.getElementById('cartCounter');
+  if (el) el.textContent = state.checkouts.length;
 }
 function renderDashboard() {
   const feed = document.getElementById('activityFeed');
@@ -1300,16 +1322,6 @@ function buildPathHtml(c) {
   return html;
 }
 
-function simulateOutage(gw) {
-  state.gateways[gw].forcedDown = true;
-  renderGatewayCards();
-}
-function recoverGateway(gw) {
-  state.gateways[gw].forcedDown = false;
-  state.gateways[gw].status = 'healthy';
-  state.gateways[gw].latency = rand(60, 180);
-  renderGatewayCards();
-}
 
 // --- BILLING ---
 function renderBilling(area) {
