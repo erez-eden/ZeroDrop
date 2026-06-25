@@ -1435,11 +1435,11 @@ function showTransactionModal(txnId) {
       <div class="modal-row"><span class="label">Order</span><span class="value mono">${c.orderId}</span></div>
       <div class="modal-row"><span class="label">Customer</span><span class="value">${c.customer}</span></div>
       <div class="modal-row"><span class="label">Amount</span><span class="value">₪${c.amount}</span></div>
-      <div class="modal-row"><span class="label">Status</span><span class="value">${statusMap[c.finalStatus] || c.finalStatus}</span></div>
+      <div class="modal-row"><span class="label">Status</span><span class="value">${statusMap[c.finalStatus] || c.finalStatus} ${c.rescued ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFEFF;color:#0891B2;font-family:var(--font-mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-left:6px">★ Recovered</span>' : ''}</span></div>
       <div class="modal-row"><span class="label">Final Gateway</span><span class="value mono">${c.finalGateway || '—'}</span></div>
       <div class="modal-row"><span class="label">Routes Tried</span><span class="value">${routeCount}</span></div>
       <div class="modal-row"><span class="label">Laps</span><span class="value">${c.laps.length}</span></div>
-      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee} (${c.rescued ? '2%' : '1%'})</span></div>
+      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee} (${c.rescued ? '2% rescue rate' : '1% standard rate'})</span></div>${c.rescued ? '<div style="padding:0 0 var(--space-sm);font-size:11px;color:var(--text-muted);text-align:right;border-bottom:1px solid var(--border-subtle)">Standard routing is 1%. Rescued transactions are charged at 2%.</div>' : ''}
       <div class="modal-row"><span class="label">Timestamp</span><span class="value mono" style="font-size:12px">${c.timestamp}</span></div>
       <button class="btn btn-secondary modal-close" onclick="document.getElementById('txnModal').classList.remove('open')">Close</button>
     </div>`;
@@ -1471,9 +1471,9 @@ function renderBilling(area) {
         <div class="metric-change down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> ${state.ledger.length} txns</div>
       </div>
       <div class="metric-card accent">
-        <div class="metric-label">Total Bill (40₪ / txn)</div>
+        <div class="metric-label">Total Bill (1% / 2% fee)</div>
         <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalBill)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${state.checkouts.length} × 40₪</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${state.checkouts.length} txns — 1% standard / 2% rescue</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Insurance Coverage</div>
