@@ -812,11 +812,6 @@ td.amount.fee { color: var(--secondary); }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         GMV & Billing
       </button>
-      <button class="nav-item" data-view="ledger">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Ledger
-        <span class="nav-badge" id="ledgerBadge" style="margin-left:auto">0</span>
-      </button>
       <span class="nav-section">Configure</span>
       <button class="nav-item" data-view="settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1015,19 +1010,7 @@ state.checkouts.unshift(result);
     state.claimableGMV += amount;
   }
 
-  let claimStatus = 'settled';
-  if (result.finalStatus === 'rescued') claimStatus = 'covered';
-  if (result.finalStatus === 'declined') claimStatus = 'pending';
-  const needsInsurance = result.finalStatus === 'rescued' || result.finalStatus === 'declined';
-  state.ledger.unshift({
-    ...result,
-    claimStatus,
-    payoutDate: needsInsurance ? endOfNextMonth() : null,
-    claimFiledAt: null
-  });
-
   if (state.currentView === 'dashboard') { animateRoutingV2(result); }
-  updateLedgerBadge();
 }
 
 // ===== ROUTING ANIMATION V2: Cart → Gateway Row =====
@@ -1256,19 +1239,13 @@ function toggleStream() {
   else startStream();
 }
 
-// ===== LEDGER BADGE =====
-function updateLedgerBadge() {
-  const badge = document.getElementById('ledgerBadge');
-  badge.textContent = state.ledger.length;
-}
-
 // ===== NAVIGATION =====
 function navigate(view) {
   state.currentView = view;
   document.querySelectorAll('.nav-item[data-view]').forEach(el => {
     el.classList.toggle('active', el.dataset.view === view);
   });
-  const titles = { dashboard: 'Dashboard', billing: 'GMV & Billing', ledger: 'Reconciliation Ledger', settings: 'Settings' };
+  const titles = { dashboard: 'Dashboard', billing: 'GMV & Billing', settings: 'Settings' };
   document.getElementById('pageTitle').textContent = titles[view] || 'Dashboard';
   renderView(view);
 }
@@ -1282,7 +1259,6 @@ function renderView(view) {
   switch (view) {
     case 'dashboard': renderDashboardFull(area); break;
     case 'billing': renderBilling(area); break;
-    case 'ledger': renderLedger(area); break;
     case 'settings': renderSettings(area); break;
   }
 }
@@ -1577,96 +1553,6 @@ function renderMonthlyChart() {
   }).join('');
 }
 
-// --- LEDGER ---
-function renderLedger(area) {
-  const total = state.ledger.length;
-  const declined = state.ledger.filter(l => l.finalStatus === 'declined').length;
-  const pending = state.ledger.filter(l => l.finalStatus === 'declined' && (l.claimStatus === 'pending' || l.claimStatus === 'filed')).length;
-  const payoutGMV = state.ledger.filter(l => l.finalStatus === 'rescued' || (l.finalStatus === 'declined' && l.claimStatus !== 'pending')).reduce((s, l) => s + l.amount, 0);
-  area.innerHTML = `
-    <div class="metric-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-lg)">
-      <div class="metric-card">
-        <div class="metric-label">Transactions</div>
-        <div class="metric-value">${total}</div>
-        <div class="metric-subtitle">${declined} declined | ${total - declined} settled</div>
-      </div>
-      <div class="metric-card accent">
-        <div class="metric-label">Pending Claims</div>
-        <div class="metric-value" style="color:${pending > 0 ? 'var(--warning)' : 'var(--success)'}">${pending}</div>
-        <div class="metric-subtitle">awaiting action</div>
-      </div>
-      <div class="metric-card recovered">
-        <div class="metric-label">Next Month Payout</div>
-        <div class="metric-value">${fmt(payoutGMV)}</div>
-        <div class="metric-subtitle">insured amount due ${endOfNextMonth()}</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Reconciliation Ledger</h2></div>
-      <div class="card-body zero"><div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Amount</th><th>Fee</th><th>Gateways Attempted</th><th>Retry Laps</th><th>Insurance</th></tr></thead>
-          <tbody id="ledgerBody"></tbody>
-        </table>
-      </div></div>
-    </div>
-  `;
-  renderLedgerBody();
-}
-function renderLedgerBody() {
-  const tbody = document.getElementById('ledgerBody');
-  if (!tbody) return;
-  if (state.ledger.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="padding:var(--space-2xl);text-align:center;color:var(--text-muted)">No transactions yet. Start the stream to see ledger entries.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = state.ledger.map((l, i) => {
-    const gws = l.laps.flatMap(lap => lap.attempts.map(a => a.gw)).join(', ');
-    const laps = l.laps.length;
-    const isDeclined = l.finalStatus === 'declined';
-    const isRescued = l.finalStatus === 'rescued';
-    let statusHtml = '';
-    if (isDeclined) {
-      if (l.claimStatus === 'pending') {
-        statusHtml = `<button class="claim-btn pending" onclick="fileClaim(${i})">File Claim</button>`;
-      } else if (l.claimStatus === 'filed') {
-        statusHtml = `<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Filed</span><span style="font-size:10px;color:var(--text-muted);white-space:nowrap">Payout by ${l.payoutDate || endOfNextMonth()}</span></span>`;
-      } else {
-        statusHtml = `<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F0FDF4;color:#15803D;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Settled</span><span style="font-size:10px;color:var(--text-muted);white-space:nowrap">Paid ${l.claimFiledAt || l.timestamp}</span></span>`;
-      }
-    } else if (isRescued) {
-      statusHtml = `<span style="display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#ECFEFF;color:#0891B2;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">★ Covered</span><span style="font-size:10px;color:var(--text-muted);white-space:nowrap">Auto-settled — Payout by ${l.payoutDate || endOfNextMonth()}</span></span>`;
-    } else {
-      statusHtml = '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#F0FDF4;color:#15803D;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">Settled</span>';
-    }
-    return `<tr>
-      <td style="font-family:var(--font-mono);font-size:12px">${l.timestamp}</td>
-      <td style="font-family:var(--font-mono)">${l.orderId}</td>
-      <td>${l.customer}</td>
-      <td class="amount">₪${l.amount}</td>
-      <td class="amount fee">₪${l.fee} (${isRescued || isDeclined ? '2%' : '1%'})</td>
-      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${gws}</td>
-      <td style="font-family:var(--font-mono)">${laps} lap${laps!==1?'s':''}</td>
-      <td style="text-align:right">${statusHtml}</td>
-    </tr>`;
-  }).join('');
-}
-function fileClaim(i) {
-  const entry = state.ledger[i];
-  if (!entry || entry.finalStatus !== 'declined' || entry.claimStatus !== 'pending') return;
-  entry.claimStatus = 'filed';
-  entry.claimFiledAt = now();
-  renderLedgerBody();
-  updateLedgerBadge();
-}
-function cycleClaim(i) {
-  const entry = state.ledger[i];
-  if (!entry || entry.finalStatus !== 'declined' || entry.claimStatus !== 'filed') return;
-  entry.claimStatus = 'settled';
-  renderLedgerBody();
-  updateLedgerBadge();
-}
-
 // --- SETTINGS ---
 function renderSettings(area) {
   const gw = state.preferredGateway;
@@ -1727,7 +1613,6 @@ function seedMockData() {
     const orderId = '#SHOP-' + rand(1000, 9999);
     const isRescued = i >= 4 && i < 6;
     const isDeclined = i >= 6;
-    const isDeclinedFiled = i === 7;
     const laps = [];
     if (isDeclined) {
       laps.push({ num: 1, attempts: gwList.map((g, idx) => ({ gw: g, result: idx < 3 ? 'fail' : 'fail' })) });
@@ -1742,10 +1627,6 @@ function seedMockData() {
     const rescued = isRescued;
     const finalGateway = isDeclined ? null : (isRescued ? 'Grow' : 'Hyp');
     const fee = Math.round(amt * (isRescued || isDeclined ? 0.02 : 0.01));
-    const needsInsurance = isRescued || isDeclined;
-    let claimStatus = 'settled';
-    if (isRescued) claimStatus = 'covered';
-    if (isDeclined) claimStatus = isDeclinedFiled ? 'filed' : 'pending';
     const txn = {
       txnId: -(i + 1),
       orderId, customer: cust, amount: amt, preferred: 'Hyp',
@@ -1758,18 +1639,11 @@ function seedMockData() {
     state.totalBill += fee;
     if (rescued) state.rescuedGMV += amt;
     if (isDeclined) state.claimableGMV += amt;
-    state.ledger.unshift({
-      ...txn,
-      claimStatus,
-      payoutDate: needsInsurance ? endOfNextMonth() : null,
-      claimFiledAt: isDeclinedFiled ? ago(10) : null
-    });
   }
 }
 
 function doLogin() {
   seedMockData();
-  updateLedgerBadge();
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   navigate('dashboard');
