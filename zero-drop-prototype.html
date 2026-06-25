@@ -580,6 +580,28 @@ td.amount.fee { color: var(--secondary); }
   color: var(--success); margin-top: var(--space-sm);
   opacity: 0; transition: opacity 0.3s;
 }
+.settings-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
+}
+.setting-row {
+  display: flex; gap: var(--space-md);
+}
+.setting-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body); font-size: 15px;
+  color: var(--text);
+  background: var(--surface);
+}
+.setting-input:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+}
 .saved-msg.show { opacity: 1; }
 
 /* ===== Animations ===== */
@@ -764,6 +786,7 @@ td.amount.fee { color: var(--secondary); }
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
   .metric-grid { grid-template-columns: repeat(3, 1fr); }
+  .settings-grid { grid-template-columns: 1fr; }
   .charts-row { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: 1fr; }
 }
@@ -1556,41 +1579,188 @@ function renderMonthlyChart() {
 // --- SETTINGS ---
 function renderSettings(area) {
   const gw = state.preferredGateway;
+  const timeout = localStorage.getItem('zdTimeout') || '400';
+  const retryLaps = localStorage.getItem('zdRetryLaps') || '3';
+  const backoffMs = localStorage.getItem('zdBackoff') || '500';
+  const coverLimit = localStorage.getItem('zdCoverLimit') || '50000';
+  const notifyDown = localStorage.getItem('zdNotifyDown') !== 'false';
+  const notifyRescue = localStorage.getItem('zdNotifyRescue') !== 'false';
+  const enforced3DS = localStorage.getItem('zd3DS') !== 'false';
+
   area.innerHTML = `
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Gateway Preferences</h2></div>
-      <div class="card-body">
-        <div class="settings-form">
+    <div class="settings-grid">
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Account & Store</h2></div>
+        <div class="card-body" style="font-size:14px">
+          <div style="display:flex;align-items:center;gap:var(--space-md);margin-bottom:var(--space-lg)">
+            <div style="width:48px;height:48px;border-radius:999px;background:var(--secondary);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff">AK</div>
+            <div>
+              <div style="font-weight:600">Adam Kogan</div>
+              <div style="font-size:13px;color:var(--text-muted)">Mid-market eCommerce Operator</div>
+            </div>
+          </div>
+          <div class="modal-row"><span class="label">Store</span><span class="value">Shopify — my-store.myshopify.com</span></div>
+          <div class="modal-row"><span class="label">Contract</span><span class="value mono" style="font-size:12px">ZD-MER-2841-X9</span></div>
+          <div class="modal-row"><span class="label">Joined</span><span class="value">January 2026</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Integration</h2></div>
+        <div class="card-body" style="font-size:14px">
+          <div class="modal-row"><span class="label">Platform</span><span class="value">Shopify</span></div>
+          <div class="modal-row"><span class="label">Status</span><span class="value"><span class="gateway-status healthy">Connected</span></span></div>
+          <div class="modal-row"><span class="label">API Key</span><span class="value mono" style="font-size:12px">zd_live_••••••••••••••••</span></div>
+          <div class="modal-row"><span class="label">Webhook URL</span><span class="value mono" style="font-size:11px">hooks.zerodrop.io/shopify</span></div>
+          <div class="modal-row"><span class="label">Last Sync</span><span class="value">${ago(3)}</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Routing Configuration</h2></div>
+        <div class="card-body">
           <div class="setting-group">
             <label>Preferred Gateway</label>
             <select id="prefGateway" onchange="savePreferred()">
               ${GATEWAYS.map(g => `<option value="${g}" ${g===gw?'selected':''}>${g}</option>`).join('')}
             </select>
-            <p class="setting-hint">ZeroDrop will try this gateway first. Remaining gateways are routed by health metrics.</p>
+            <p class="setting-hint">ZeroDrop tries this gateway first per lap. Remaining gateways are routed by health score.</p>
           </div>
-          <p class="saved-msg show" id="prefSaved">✓ Preference saved to this browser</p>
+          <div class="setting-row">
+            <div class="setting-group" style="flex:1">
+              <label>Timeout (ms)</label>
+              <input class="setting-input" type="number" id="setTimeout" value="${timeout}" min="100" max="2000" step="50" onchange="saveSetting('zdTimeout', this.value)">
+              <p class="setting-hint">Max wait before declaring an attempt failed</p>
+            </div>
+            <div class="setting-group" style="flex:1">
+              <label>Backoff Delay (ms)</label>
+              <input class="setting-input" type="number" id="setBackoff" value="${backoffMs}" min="100" max="5000" step="50" onchange="saveSetting('zdBackoff', this.value)">
+              <p class="setting-hint">Delay between retry laps</p>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-group" style="flex:1">
+              <label>Retry Laps</label>
+              <select id="setRetryLaps" onchange="saveSetting('zdRetryLaps', this.value)">
+                <option value="2" ${retryLaps==='2'?'selected':''}>2 laps</option>
+                <option value="3" ${retryLaps==='3'?'selected':''}>3 laps (recommended)</option>
+                <option value="4" ${retryLaps==='4'?'selected':''}>4 laps</option>
+              </select>
+              <p class="setting-hint">Retry cycles before declaring a transaction lost</p>
+            </div>
+            <div class="setting-group" style="flex:1"></div>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-head"><h2 class="card-title">Billing Model</h2></div>
-      <div class="card-body" style="font-size:15px">
-        <p style="margin-bottom:var(--space-md)">ZeroDrop charges <strong>40₪ per transaction</strong>. One contract, one consolidated bill. No subscription, no percentage of GMV, no per-gateway fees. The merchant never pays gateways directly.</p>
-        <div style="display:flex;gap:var(--space-lg)">
-          <div style="flex:1;padding:var(--space-lg);background:var(--border-subtle);border-radius:var(--radius-md)">
-            <div class="metric-label">Rate</div>
-            <div class="metric-value" style="font-size:32px">40₪</div>
-            <div style="font-size:13px;color:var(--text-muted)">per transaction</div>
+
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Insurance & Billing</h2></div>
+        <div class="card-body">
+          <div class="setting-group">
+            <label>Coverage Limit (₪ per transaction)</label>
+            <input class="setting-input" type="text" id="setCoverLimit" value="₪${Number(coverLimit).toLocaleString('en-US')}" onchange="saveSetting('zdCoverLimit', this.value.replace(/[^0-9]/g,''))">
+            <p class="setting-hint">Maximum amount covered by insurance per transaction. Rescued & declined transactions are auto-settled by end of next month.</p>
           </div>
-          <div style="flex:1;padding:var(--space-lg);background:var(--border-subtle);border-radius:var(--radius-md)">
-            <div class="metric-label">Your Bill Today</div>
-            <div class="metric-value" style="font-size:32px;color:var(--secondary)">${fmt(state.totalBill)}</div>
-            <div style="font-size:13px;color:var(--text-muted)">${state.checkouts.length} transactions</div>
+          <div style="display:flex;gap:var(--space-lg);margin-top:var(--space-md)">
+            <div style="flex:1;padding:var(--space-md);background:var(--border-subtle);border-radius:var(--radius-md);text-align:center">
+              <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Standard Rate</div>
+              <div style="font-size:24px;font-weight:700">1%</div>
+              <div style="font-size:12px;color:var(--text-muted)">cleared on first attempt</div>
+            </div>
+            <div style="flex:1;padding:var(--space-md);background:#ECFEFF;border-radius:var(--radius-md);text-align:center">
+              <div style="font-size:11px;color:#0891B2;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Insurance Rate</div>
+              <div style="font-size:24px;font-weight:700;color:#0891B2">2%</div>
+              <div style="font-size:12px;color:var(--text-muted)">rescued or declined</div>
+            </div>
+          </div>
+          <div style="margin-top:var(--space-md);font-size:13px;color:var(--text-muted)">
+            <strong>Payout:</strong> All insured amounts auto-paid by last business day of the following month. No claim filing needed.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Security</h2></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:var(--space-sm)">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;border-bottom:1px solid var(--border-subtle)">
+              <div>
+                <div style="font-weight:600;font-size:14px">Tokenization</div>
+                <div style="font-size:12px;color:var(--text-muted)">PCI DSS Level 1. Cards encrypted at rest across all gateways.</div>
+              </div>
+              <span class="gateway-status healthy">Active</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;border-bottom:1px solid var(--border-subtle)">
+              <div>
+                <div style="font-weight:600;font-size:14px">3D Secure (EMV 3DS)</div>
+                <div style="font-size:12px;color:var(--text-muted)">Additional authentication. Reduces chargeback liability.</div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" ${enforced3DS ? 'checked' : ''} onchange="saveToggle('zd3DS', this.checked)" style="accent-color:var(--secondary)">
+                <span style="font-size:13px">Enforce</span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;">
+              <div>
+                <div style="font-weight:600;font-size:14px">Card Metadata Handoff</div>
+                <div style="font-size:12px;color:var(--text-muted)">Token preserved between gateways during failover. No re-entry.</div>
+              </div>
+              <span class="gateway-status healthy">Always On</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2 class="card-title">Notifications</h2></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:var(--space-sm)">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;border-bottom:1px solid var(--border-subtle)">
+              <div>
+                <div style="font-weight:600;font-size:14px">Gateway Down Alert</div>
+                <div style="font-size:12px;color:var(--text-muted)">Email + SMS when a gateway degrades or goes down</div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" ${notifyDown ? 'checked' : ''} onchange="saveToggle('zdNotifyDown', this.checked)" style="accent-color:var(--secondary)">
+                <span style="font-size:13px">On</span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;border-bottom:1px solid var(--border-subtle)">
+              <div>
+                <div style="font-weight:600;font-size:14px">Transaction Rescue Alert</div>
+                <div style="font-size:12px;color:var(--text-muted)">Notify when a transaction is rescued (Lap 2/3 success)</div>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" ${notifyRescue ? 'checked' : ''} onchange="saveToggle('zdNotifyRescue', this.checked)" style="accent-color:var(--secondary)">
+                <span style="font-size:13px">On</span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-sm) 0;">
+              <div>
+                <div style="font-weight:600;font-size:14px">Monthly Payout Summary</div>
+                <div style="font-size:12px;color:var(--text-muted)">Monthly email summary of insured amounts and payouts</div>
+              </div>
+              <span class="gateway-status healthy">On</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   `;
+}
+
+function savePreferred() {
+  const sel = document.getElementById('prefGateway');
+  state.preferredGateway = sel.value;
+  localStorage.setItem('zdPreferred', sel.value);
+}
+
+function saveSetting(key, value) {
+  localStorage.setItem(key, value);
+}
+
+function saveToggle(key, checked) {
+  localStorage.setItem(key, checked);
 }
 function savePreferred() {
   const sel = document.getElementById('prefGateway');
