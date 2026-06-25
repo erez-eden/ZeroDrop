@@ -613,15 +613,13 @@ td.amount.fee { color: var(--secondary); }
 .gateway-row .gateway-card {
   flex: 0 0 220px;
   position: relative;
-  transition: box-shadow 0.2s, transform 0.1s;
+  transition: box-shadow 0.15s;
 }
 .gateway-row .gateway-card.flash-pass {
   box-shadow: 0 0 0 3px var(--success), 0 0 24px rgba(34,197,94,0.25);
-  transform: scale(1.02);
 }
 .gateway-row .gateway-card.flash-fail {
   box-shadow: 0 0 0 3px var(--danger), 0 0 24px rgba(239,68,68,0.25);
-  transform: scale(0.98);
 }
 .gw-connector {
   display: flex; align-items: center; justify-content: center;
