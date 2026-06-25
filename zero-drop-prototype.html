@@ -906,6 +906,37 @@ function gatewayHealth(st) {
 }
 
 // ===== ROUTING ENGINE (FR-3) =====
+function getAvailableGateways(exclude) {
+  const healthy = [], degraded = [];
+  GATEWAYS.forEach(g => {
+    if (exclude.has(g)) return;
+    const gs = state.gateways[g];
+    if (gs.forcedDown || gs.status === 'down') return;
+    if (gs.status === 'degraded') degraded.push(g);
+    else healthy.push(g);
+  });
+  return { healthy, degraded };
+}
+
+function orderedLapGateways(preferred, exclude) {
+  const { healthy, degraded } = getAvailableGateways(exclude);
+  const order = [];
+  // Preferred first if healthy
+  if (preferred && healthy.includes(preferred)) {
+    order.push(preferred);
+    healthy.splice(healthy.indexOf(preferred), 1);
+  }
+  // Then other healthy
+  order.push(...healthy);
+  // Then degraded (preferred first if degraded)
+  if (preferred && degraded.includes(preferred)) {
+    order.push(preferred);
+    degraded.splice(degraded.indexOf(preferred), 1);
+  }
+  order.push(...degraded);
+  return order;
+}
+
 function routeCheckout(amount, customer, orderId) {
   const preferred = state.preferredGateway;
   const laps = [];
@@ -915,68 +946,22 @@ function routeCheckout(amount, customer, orderId) {
 
   const hardFails = new Set();
 
-  // Lap 1 — immediate
-  const lap1Gateways = [preferred, ...GATEWAYS.filter(g => g !== preferred)];
-  laps.push({ num: 1, attempts: [] });
-  for (const gw of lap1Gateways) {
-    if (hardFails.has(gw)) continue;
-    const gs = state.gateways[gw];
-    if (gs.forcedDown || gs.status === 'down') {
-      laps[0].attempts.push({ gw, result: 'skip-down' });
-      continue;
-    }
-    const fails = Math.random() < 0.18; // 18% simulated fail
-    laps[0].attempts.push({ gw, result: fails ? 'fail' : 'success' });
-    if (!fails) {
-      finalGateway = gw;
-      finalStatus = 'cleared';
-      rescued = false;
-      break;
-    } else {
-      if (Math.random() < 0.05) hardFails.add(gw); // 5% hard fail
-    }
-  }
+  const lapRates = [0.18, 0.25, 0.30];
 
-  // Lap 2 — 500ms backoff across remaining gateways
-  if (!finalGateway) {
-    laps.push({ num: 2, attempts: [] });
-    const remaining = GATEWAYS.filter(g => !hardFails.has(g));
-    for (const gw of remaining) {
-      const gs = state.gateways[gw];
-      if (gs.forcedDown || gs.status === 'down') {
-        laps[1].attempts.push({ gw, result: 'skip-down' });
-        continue;
-      }
-      const fails = Math.random() < 0.25;
-      laps[1].attempts.push({ gw, result: fails ? 'fail' : 'success' });
+  for (let li = 0; li < 3; li++) {
+    if (finalGateway) break;
+    laps.push({ num: li + 1, attempts: [] });
+    const gateways = orderedLapGateways(preferred, hardFails);
+    for (const gw of gateways) {
+      const fails = Math.random() < lapRates[li];
+      laps[li].attempts.push({ gw, result: fails ? 'fail' : 'success' });
       if (!fails) {
         finalGateway = gw;
-        finalStatus = 'rescued';
-        rescued = true;
+        finalStatus = li === 0 ? 'cleared' : 'rescued';
+        rescued = li > 0;
         break;
       } else {
         if (Math.random() < 0.05) hardFails.add(gw);
-      }
-    }
-  }
-
-  // Lap 3 — 1000ms backoff, final try
-  if (!finalGateway) {
-    laps.push({ num: 3, attempts: [] });
-    const remaining = GATEWAYS.filter(g => !hardFails.has(g));
-    for (const gw of remaining) {
-      const gs = state.gateways[gw];
-      if (gs.forcedDown || gs.status === 'down') {
-        laps[2].attempts.push({ gw, result: 'skip-down' });
-        continue;
-      }
-      const fails = Math.random() < 0.30;
-      laps[2].attempts.push({ gw, result: fails ? 'fail' : 'success' });
-      if (!fails) {
-        finalGateway = gw;
-        finalStatus = 'rescued';
-        rescued = true;
-        break;
       }
     }
   }
@@ -986,7 +971,7 @@ function routeCheckout(amount, customer, orderId) {
     finalGateway, finalStatus, rescued,
     laps,
     timestamp: now(),
-    fee: 40
+    fee: Math.round(amount * 0.01)
   };
 }
 
@@ -1404,7 +1389,7 @@ function showTransactionModal(txnId) {
       <div class="modal-row"><span class="label">Final Gateway</span><span class="value mono">${c.finalGateway || '—'}</span></div>
       <div class="modal-row"><span class="label">Routes Tried</span><span class="value">${routeCount}</span></div>
       <div class="modal-row"><span class="label">Laps</span><span class="value">${c.laps.length}</span></div>
-      <div class="modal-row"><span class="label">Fee</span><span class="value">₪40</span></div>
+      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee}</span></div>
       <div class="modal-row"><span class="label">Timestamp</span><span class="value mono" style="font-size:12px">${c.timestamp}</span></div>
       <button class="btn btn-secondary modal-close" onclick="document.getElementById('txnModal').classList.remove('open')">Close</button>
     </div>`;
