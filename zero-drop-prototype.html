@@ -266,7 +266,8 @@ body {
 .btn-success:hover { background: #16A34A; }
 
 .content {
-  flex: 1; overflow-y: auto; padding: var(--space-lg);
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: var(--space-lg); scrollbar-gutter: stable;
 }
 
 /* ===== Metric Cards ===== */
@@ -614,6 +615,7 @@ td.amount.fee { color: var(--secondary); }
   flex: 0 0 220px;
   position: relative;
   transition: box-shadow 0.15s;
+  contain: layout style paint;
 }
 .gateway-row .gateway-card.flash-pass {
   box-shadow: 0 0 0 3px var(--success), 0 0 24px rgba(34,197,94,0.25);
@@ -1071,7 +1073,6 @@ function animateRoutingV2(result) {
 
   function finish() {
     // Color the packet
-    pkt.classList.remove('routing-packet');
     if (result.finalStatus === 'cleared') pkt.classList.add('cleared');
     else if (result.finalStatus === 'rescued') pkt.classList.add('saved');
     else pkt.classList.add('lost');
