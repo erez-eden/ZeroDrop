@@ -723,6 +723,15 @@ td.amount.fee { color: var(--secondary); }
   content: ""; width: 6px; height: 6px; border-radius: var(--radius-pill);
   background: #F59E0B;
 }
+.boost-indicator {
+  display: inline-flex; align-items: center; gap: var(--space-sm);
+  padding: 6px var(--space-md);
+  border-radius: var(--radius-pill);
+  background: #F0FDF4;
+  color: #15803D;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
 
 /* ===== Transaction Detail Modal ===== */
 .modal-overlay {
@@ -860,6 +869,7 @@ td.amount.fee { color: var(--secondary); }
       <div class="topbar-left">
         <h1 class="page-title" id="pageTitle">Dashboard</h1>
         <span class="flash-indicator hidden" id="flashIndicator">⚡ Flash Sale Active</span>
+        <span class="boost-indicator" id="boostIndicator" style="display:${state.acceptanceBoost ? 'inline-flex' : 'none'}">🚀 Boost Active</span>
       </div>
       <div class="topbar-right">
         <button class="btn btn-accent btn-sm" onclick="simulateFlashSale()" id="flashSaleBtn">⚡ Simulate Flash Sale</button>
@@ -885,6 +895,8 @@ const AMTS = [50,75,99,120,150,189,220,250,290,340,390,450,520,600,720,850,990,1
 
 let state = {
   preferredGateway: localStorage.getItem('zdPreferred') || 'Hyp',
+  acceptanceBoost: localStorage.getItem('zdAcceptBoost') !== 'false',
+  boostedCount: 0,
   gateways: {},
   checkouts: [],
   ledger: [],
@@ -984,13 +996,14 @@ function routeCheckout(amount, customer, orderId) {
   const hardFails = new Set();
 
   const lapRates = [0.55, 0.20, 0.10];
+  const boost = state.acceptanceBoost ? 0.5 : 1.0; // 50% reduction in fail rate when boost is ON
 
   for (let li = 0; li < 3; li++) {
     if (finalGateway) break;
     laps.push({ num: li + 1, attempts: [] });
     const gateways = orderedLapGateways(preferred, hardFails);
     for (const gw of gateways) {
-      const fails = Math.random() < lapRates[li];
+      const fails = Math.random() < (lapRates[li] * boost);
       laps[li].attempts.push({ gw, result: fails ? 'fail' : 'success' });
       if (!fails) {
         finalGateway = gw;
@@ -1002,6 +1015,7 @@ function routeCheckout(amount, customer, orderId) {
       }
     }
   }
+  if (state.acceptanceBoost) state.boostedCount++;
 
   return {
     orderId, customer, amount, preferred,
@@ -1650,6 +1664,16 @@ function renderSettings(area) {
             </div>
             <div class="setting-group" style="flex:1"></div>
           </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-md) 0;border-top:1px solid var(--border-subtle);margin-top:var(--space-sm)">
+            <div>
+              <div style="font-weight:600;font-size:14px;color:var(--success)">⚡ Acceptance Boost</div>
+              <div style="font-size:12px;color:var(--text-muted)">AI-optimized timing & formatting per gateway. Reduces failure rates by ~50%. Recommended.</div>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" ${state.acceptanceBoost ? 'checked' : ''} onchange="toggleAcceptBoost(this.checked)" style="accent-color:var(--success);width:18px;height:18px">
+              <span style="font-size:13px">${state.acceptanceBoost ? 'Active' : 'Off'}</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1762,14 +1786,11 @@ function saveSetting(key, value) {
 function saveToggle(key, checked) {
   localStorage.setItem(key, checked);
 }
-function savePreferred() {
-  const sel = document.getElementById('prefGateway');
-  state.preferredGateway = sel.value;
-  localStorage.setItem('zdPreferred', sel.value);
-  const msg = document.getElementById('prefSaved');
-  msg.classList.remove('show');
-  void msg.offsetWidth;
-  msg.classList.add('show');
+function toggleAcceptBoost(checked) {
+  state.acceptanceBoost = checked;
+  localStorage.setItem('zdAcceptBoost', checked);
+  const badge = document.getElementById('boostIndicator');
+  if (badge) badge.style.display = checked ? 'inline-flex' : 'none';
 }
 
 // ===== LOGIN =====
