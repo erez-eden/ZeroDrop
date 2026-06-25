@@ -695,6 +695,65 @@ td.amount.fee { color: var(--secondary); }
   background: #F59E0B;
 }
 
+/* ===== Transaction Detail Modal ===== */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(15,23,42,0.5);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.modal-overlay.open {
+  opacity: 1; pointer-events: auto;
+}
+.modal-box {
+  width: 420px; max-width: 90vw;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dropdown);
+  padding: var(--space-2xl);
+  transform: translateY(8px);
+  transition: transform 0.2s;
+}
+.modal-overlay.open .modal-box {
+  transform: translateY(0);
+}
+.modal-box h3 {
+  font-size: 18px; font-weight: 600; letter-spacing: -0.02em;
+  margin-bottom: var(--space-lg);
+}
+.modal-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 14px;
+}
+.modal-row:last-child { border-bottom: none; }
+.modal-row .label { color: var(--text-muted); font-weight: 500; }
+.modal-row .value { font-weight: 600; text-align: right; }
+.modal-row .value.mono { font-family: var(--font-mono); }
+.modal-close {
+  margin-top: var(--space-lg);
+  width: 100%;
+}
+.view-link {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--secondary);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 4px;
+}
+.view-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
   .metric-grid { grid-template-columns: repeat(3, 1fr); }
@@ -812,7 +871,8 @@ let state = {
   streamInterval: null,
   flashActive: false,
   flashInterval: null,
-  currentView: 'dashboard'
+  currentView: 'dashboard',
+  txnCounter: 1
 };
 
 // Initialize gateway state
@@ -936,8 +996,9 @@ function processCheckout() {
   const customer = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
   const orderId = '#SHOP-' + rand(1000, 9999);
 
-  const result = routeCheckout(amount, customer, orderId);
-  state.checkouts.unshift(result);
+const result = routeCheckout(amount, customer, orderId);
+result.txnId = state.txnCounter++;
+state.checkouts.unshift(result);
 
   state.totalGMV += amount;
   state.totalBill += result.fee;
@@ -1288,7 +1349,7 @@ function renderDashboard() {
       else if (c.finalStatus === 'rescued') badgeHtml = '<span class="badge badge-cyan" style="margin-top:4px">Rescued</span>';
       else badgeHtml = '<span class="badge badge-danger" style="margin-top:4px">Declined</span>';
       let pathHtml = buildPathHtml(c);
-      return '<div class="activity-row new"><span class="activity-dot '+dotClass+'"></span><div class="activity-info"><div class="activity-customer">'+c.customer+'</div><div class="activity-path">'+pathHtml+'</div>'+badgeHtml+'</div><div class="activity-meta"><div class="activity-amount">₪'+c.amount+'</div><div class="activity-time">'+c.timestamp+'</div></div></div>';
+      return '<div class="activity-row new"><span class="activity-dot '+dotClass+'"></span><div class="activity-info"><div class="activity-customer">'+c.customer+' <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);font-weight:400">'+c.orderId+'</span></div><div class="activity-path">'+pathHtml+'</div>'+badgeHtml+'</div><div class="activity-meta"><div class="activity-amount">₪'+c.amount+'</div><div class="activity-time">'+c.timestamp+'</div><span class="view-link" onclick="showTransactionModal('+c.txnId+')">View →</span></div></div>';
     }).join('');
   }
   const countEl = document.getElementById('streamCount');
@@ -1313,6 +1374,42 @@ function buildPathHtml(c) {
   return html;
 }
 
+// ===== TRANSACTION DETAIL MODAL =====
+function showTransactionModal(txnId) {
+  if (typeof txnId !== 'number') return;
+  const c = state.checkouts.find(t => t.txnId === txnId);
+  if (!c) return;
+
+  let overlay = document.getElementById('txnModal');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'txnModal';
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) overlay.classList.remove('open');
+    });
+    document.body.appendChild(overlay);
+  }
+
+  const statusMap = { cleared: 'Cleared', rescued: 'Rescued (retry)', declined: 'Declined' };
+  const routeCount = c.laps.reduce((s, lap) => s + lap.attempts.length, 0);
+
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <h3>Transaction Details</h3>
+      <div class="modal-row"><span class="label">Order</span><span class="value mono">${c.orderId}</span></div>
+      <div class="modal-row"><span class="label">Customer</span><span class="value">${c.customer}</span></div>
+      <div class="modal-row"><span class="label">Amount</span><span class="value">₪${c.amount}</span></div>
+      <div class="modal-row"><span class="label">Status</span><span class="value">${statusMap[c.finalStatus] || c.finalStatus}</span></div>
+      <div class="modal-row"><span class="label">Final Gateway</span><span class="value mono">${c.finalGateway || '—'}</span></div>
+      <div class="modal-row"><span class="label">Routes Tried</span><span class="value">${routeCount}</span></div>
+      <div class="modal-row"><span class="label">Laps</span><span class="value">${c.laps.length}</span></div>
+      <div class="modal-row"><span class="label">Fee</span><span class="value">₪40</span></div>
+      <div class="modal-row"><span class="label">Timestamp</span><span class="value mono" style="font-size:12px">${c.timestamp}</span></div>
+      <button class="btn btn-secondary modal-close" onclick="document.getElementById('txnModal').classList.remove('open')">Close</button>
+    </div>`;
+  overlay.classList.add('open');
+}
 
 // --- BILLING ---
 function renderBilling(area) {
