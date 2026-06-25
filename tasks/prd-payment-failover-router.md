@@ -6,7 +6,7 @@ ZeroDrop is a **single-contract payment infrastructure platform** for mid-market
 
 ZeroDrop acts as the **master merchant-of-record aggregator**, natively connected to a pre-integrated network of local payment gateways (Hyp, CreditGuard, Tranzila, Grow). During checkout, ZeroDrop dynamically routes each transaction through the healthiest available gateway with sub-400ms latency. If a gateway fails mid-session, card token metadata is preserved and seamlessly handed off to the next gateway — the customer never re-enters their card.
 
-The merchant pays one simple, predictable fee: **40₪ per transaction**, covering all gateway costs, routing, failover, and settlement. No percentage of GMV, no monthly minimum, no hidden gateway markups.
+The merchant pays a tiered fee: **1% of transaction amount** for standard routing (cleared on first attempt), and **2% for insurance-covered transactions** (rescued by retry or declined and covered by ZeroDrop insurance). No monthly minimum, no hidden gateway markups.
 
 **North Star KPI:** Achieve a **0% checkout failure rate** due to payment network crashes during major regional traffic spikes (e.g., ShoppingIL), resulting in a measurable conversion lift at the payment step versus historical single-gateway baselines.
 
@@ -24,8 +24,8 @@ The merchant pays one simple, predictable fee: **40₪ per transaction**, coveri
 | G2 | Show dynamic failover with transparent token handoff | Routing pipeline shows sub-400ms gateway-to-gateway transitions |
 | G3 | Provide a live operations dashboard with real-time checkout visibility | Simulated data stream with routing path traces |
 | G4 | Display Rescued GMV — revenue saved by failover routing | Aggregated value of transactions where fallback succeeded |
-| G5 | Show one consolidated bill — 40₪ × transaction count | Single invoice view, no per-gateway line items |
-| G6 | Log unrecoverable failures to a Reconciliation Ledger | Ledger table with claim status and per-transaction fee |
+| G5 | Show one consolidated bill — tiered 1% / 2% fee | Single invoice view, no per-gateway line items |
+| G6 | Reconcile failed transactions via Insurance Ledger | Ledger table with claim filing, payout dates, and auto-coverage for rescued txns |
 | G7 | Let the operator configure preferred gateway | Settings panel persisted to localStorage |
 | G8 | **North Star:** Demonstrate zero-failure routing during a simulated ShoppingIL spike | Flash Sale mode: 22 checkouts in 5 seconds, 0% unrecoverable rate |
 
@@ -50,13 +50,13 @@ The merchant pays one simple, predictable fee: **40₪ per transaction**, coveri
 - Feed shows status: Cleared / Rescued / Declined with retry lap count.
 - Sub-400ms transitions are visually fast (animation compressed to ~500ms per hop for demo).
 
-### US-3: Operator views rescued revenue and pays one bill
-*As Adam Kogan, I want to see how much revenue ZeroDrop saved by rerouting, and see exactly what I owe — one number, one bill — without digging through per-gateway settlement reports.*
+### US-3: Operator views rescued revenue, insurance coverage, and consolidated bill
+*As Adam Kogan, I want to see how much revenue ZeroDrop saved by rerouting, what's covered by insurance, and see exactly what I owe — one number, one bill — without digging through per-gateway settlement reports.*
 
 **Acceptance criteria:**
-- Metric cards display: Total TXNs, Rescued GMV, Total Bill (40₪ × TXNs), Claimable Lost.
-- A consolidated bill summary shows: `342 transactions × 40₪ = 13,680₪`.
-- No per-gateway fee breakdown — the merchant sees one fee, one bill.
+- Metric cards display: Total TXNs, Total Volume, Success Rate, Rescued, Recovered (auto-covered), Claims Pending.
+- The 2% fee applies to rescued (auto-covered) and declined (insurance-claimable) transactions; 1% applies to standard cleared transactions.
+- A consolidated bill summary shows fees broken into standard (1%) and insurance-covered (2%) tiers.
 - A bar chart shows rescued vs. lost GMV by day.
 
 ### US-4: Operator configures preferred gateway
@@ -68,13 +68,15 @@ The merchant pays one simple, predictable fee: **40₪ per transaction**, coveri
 - Routing always tries preferred first, then falls back by health.
 - Preference persists via localStorage.
 
-### US-5: Operator reviews the Reconciliation Ledger
-*As Adam Kogan, I want to see every transaction where all gateways failed (all retry laps exhausted), so I can understand my exposure and file claims.*
+### US-5: Operator reviews the Insurance Ledger and files claims
+*As Adam Kogan, I want to see every transaction, understand what's automatically covered by insurance, and file claims for fully declined transactions that qualify for payout.*
 
 **Acceptance criteria:**
-- Ledger table: date, order ID, customer, amount, fee (40₪), gateways attempted, retry laps, claim status.
-- Running monthly total of claimable lost GMV.
-- Claim status toggles: Pending → Filed → Settled.
+- Ledger shows ALL transactions with Insurance status column.
+- Rescued transactions show ★ Covered badge with "Auto-settled — Payout by [end of next month]".
+- Declined transactions show a "File Claim" button. Once filed: "Filed — Payout by [end of next month]". Once settled: "Settled — Paid [date]".
+- Running summary shows total transactions, pending claims count, and next month payout amount.
+- The 2% insurance fee applies to both rescued and declined transactions. Standard cleared transactions are 1% and require no insurance action.
 
 ### US-6: Operator simulates outages and flash sales
 *As Adam Kogan, I want to trigger gateway outages and ShoppingIL-style traffic spikes to verify ZeroDrop holds up under extreme conditions.*
@@ -132,19 +134,21 @@ The merchant pays one simple, predictable fee: **40₪ per transaction**, coveri
 
 ### FR-6: GMV & Billing View (Secondary View)
 - **Metric cards:**
-  - Total Transactions (count of all checkouts)
-  - Rescued GMV (value saved by failover)
-  - **Total Bill:** `transaction count × 40₪` — the merchant's one consolidated charge. No per-gateway breakdown.
-  - Claimable Lost GMV
-  - Insurance Coverage
+  - Total GMV (all transaction volume)
+  - Rescued GMV (value saved by failover — auto-covered)
+  - Declined GMV (unrecoverable — insurance claimable)
+  - **Total Bill:** tiered 1% standard / 2% insurance fee — the merchant's one consolidated charge.
+  - Next Month Payout (total insured amount due at end of next month)
 - Weekly bar chart: rescued vs. lost GMV.
 - Donut chart: routing outcomes (Cleared / Rescued / Lost).
 
-### FR-7: Reconciliation Ledger
-- Logs every transaction where all gateways + all retry laps failed.
-- Columns: date, order ID, customer, amount₪, fee (40₪), gateways attempted, retry laps, claim status.
-- Running monthly total of claimable lost GMV.
-- Claim status: Pending → Filed → Settled (manual toggle).
+### FR-7: Insurance Ledger (Reconciliation)
+- Logs EVERY transaction with Insurance status column.
+- **Rescued transactions:** "★ Covered" — Auto-settled. Payout by end of next month. No action needed.
+- **Declined transactions:** "File Claim" button (Pending) → "Filed — Payout by [next month]" → "Settled — Paid [date]". Operator must manually file.
+- **Cleared transactions:** "Settled" — 1% fee, no insurance involved.
+- Fee column shows actual percentage rate (1% or 2%).
+- Payout date computed dynamically as end of next month.
 
 ### FR-8: Gateway Preference Settings
 - Operator selects preferred gateway from pre-integrated list.
@@ -157,10 +161,10 @@ The merchant pays one simple, predictable fee: **40₪ per transaction**, coveri
 - Top bar: page title, Flash Sale button, stream pause/resume.
 
 ### FR-11: Consolidated Billing (One Invoice)
-- The system must display one unified bill: `transactionCount × 40₪`.
+- The system must display one unified bill with tiered fee structure (1% standard / 2% insurance).
 - No per-gateway fees, no hidden markups, no subscription.
 - The bill updates live as transactions flow through the system.
-- Billing card in GMV & Billing view. Settings view explains: "One contract. One bill. 40₪/txn."
+- Billing card in GMV & Billing view. Settings view explains: "One contract. One bill. 1% standard / 2% insurance."
 
 ---
 
@@ -216,7 +220,7 @@ All UI follows `DESIGN.md` at the project root.
 
 ### Status badge colors:
 - Cleared: green `#F0FDF4` / `#15803D`
-- Rescued: cyan `#ECFEFF` / `#0891B2`
+- Rescued/Covered: cyan `#ECFEFF` / `#0891B2`
 - Declined: red `#FEF2F2` / `#B91C1C`
 
 ---
@@ -245,7 +249,7 @@ All UI follows `DESIGN.md` at the project root.
 | M4 | Reconciliation Ledger accuracy | 100% of fully-failed TXNs in ledger |
 | M5 | Rescued GMV correct | Sum matches rescued checkouts |
 | M6 | Single HTML file | Opens in any browser without server |
-| M7 | **Consolidated bill correct** | `TXNs × 40₪` matches displayed total |
+| M7 | **Consolidated bill correct** | Tiered fees (1% / 2%) summed correctly: cleared at 1%, rescued + declined at 2% |
 | M8 | **0% failure during Flash Sale** | 22 checkouts in 5s, zero unrecoverable |
 
 ---
@@ -257,8 +261,8 @@ All UI follows `DESIGN.md` at the project root.
 | Q1 | Dark mode toggle? | No — light mode per DESIGN.md |
 | Q2 | Configurable stream speed? | No — fixed ~1-3s interval |
 | Q3 | Flash Sale mode? | Yes — FR-10 |
-| Q4 | Manual claim status toggle? | Yes — FR-7 |
-| Q5 | **Pricing model?** | **40₪ flat per transaction.** No subscription, no percentage, no per-gateway fees. |
+| Q4 | Manual claim filing? | Yes — Declined: Pending → File Claim → Filed → Settled. Rescued: auto-covered, no action. |
+| Q5 | **Pricing model?** | **Tiered percentage: 1% for standard cleared transactions, 2% for insurance-covered transactions (rescued + declined).** |
 | Q6 | **Gateway integration model?** | **Pre-integrated aggregator.** Merchant signs one contract with ZeroDrop. All four gateways active out-of-the-box. |
 
 ---
