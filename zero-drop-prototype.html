@@ -978,7 +978,7 @@ function routeCheckout(amount, customer, orderId) {
     finalGateway, finalStatus, rescued,
     laps,
     timestamp: now(),
-    fee: Math.round(amount * 0.01)
+    fee: Math.round(amount * (rescued ? 0.02 : 0.01))
   };
 }
 
@@ -1439,7 +1439,7 @@ function showTransactionModal(txnId) {
       <div class="modal-row"><span class="label">Final Gateway</span><span class="value mono">${c.finalGateway || '—'}</span></div>
       <div class="modal-row"><span class="label">Routes Tried</span><span class="value">${routeCount}</span></div>
       <div class="modal-row"><span class="label">Laps</span><span class="value">${c.laps.length}</span></div>
-      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee}</span></div>
+      <div class="modal-row"><span class="label">Processing Fee</span><span class="value">₪${c.fee} (${c.rescued ? '2%' : '1%'})</span></div>
       <div class="modal-row"><span class="label">Timestamp</span><span class="value mono" style="font-size:12px">${c.timestamp}</span></div>
       <button class="btn btn-secondary modal-close" onclick="document.getElementById('txnModal').classList.remove('open')">Close</button>
     </div>`;
