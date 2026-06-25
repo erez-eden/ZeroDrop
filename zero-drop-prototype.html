@@ -1271,28 +1271,7 @@ function renderView(view) {
 // --- DASHBOARD ---
 function renderDashboardFull(area) {
   area.innerHTML = `
-    <div class="dash-section">
-      <div class="cart-card" id="cartCard">
-        <div class="cart-card-label">Incoming Checkout</div>
-        <div class="cart-card-count" id="cartCounter">0</div>
-        <div class="cart-card-hint">processed</div>
-      </div>
-      <div class="gateway-row" id="gatewayRow"></div>
-    </div>
-    <div class="card">
-      <div class="card-head">
-        <h2 class="card-title">Completed Transactions</h2>
-        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em" id="streamCount">0 transactions</span>
-      </div>
-      <div class="card-body zero">
-        <div class="activity-feed" id="activityFeed">
-          <div style="padding:var(--space-2xl);text-align:center;color:var(--text-muted);font-size:14px">
-            Waiting for completed checkouts...
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="metric-grid" style="margin-top:var(--space-lg)">
+    <div class="metric-grid" style="margin-bottom:var(--space-lg)">
       <div class="metric-card">
         <div class="metric-label">Transactions</div>
         <div class="metric-value" id="statTransactions">0</div>
@@ -1317,6 +1296,27 @@ function renderDashboardFull(area) {
         <div class="metric-label">Recovered</div>
         <div class="metric-value" id="statRecovered">₪0</div>
         <div class="metric-subtitle">insurance value (rescued ₪)</div>
+      </div>
+    </div>
+    <div class="dash-section">
+      <div class="cart-card" id="cartCard">
+        <div class="cart-card-label">Incoming Checkout</div>
+        <div class="cart-card-count" id="cartCounter">0</div>
+        <div class="cart-card-hint">processed</div>
+      </div>
+      <div class="gateway-row" id="gatewayRow"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">Completed Transactions</h2>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em" id="streamCount">0 transactions</span>
+      </div>
+      <div class="card-body zero">
+        <div class="activity-feed" id="activityFeed">
+          <div style="padding:var(--space-2xl);text-align:center;color:var(--text-muted);font-size:14px">
+            Waiting for completed checkouts...
+          </div>
+        </div>
       </div>
     </div>
   `;
