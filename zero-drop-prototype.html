@@ -918,8 +918,7 @@ GATEWAYS.forEach(g => {
     status: 'healthy',
     latency: rand(80, 200),
     uptime: randInt(99, 100),
-    downSince: null,
-    forcedDown: false
+    downSince: null
   };
 });
 
@@ -960,7 +959,7 @@ function getAvailableGateways(exclude) {
   GATEWAYS.forEach(g => {
     if (exclude.has(g)) return;
     const gs = state.gateways[g];
-    if (gs.forcedDown || gs.status === 'down') return;
+    if (gs.status === 'down') return;
     if (gs.status === 'degraded') degraded.push(g);
     else healthy.push(g);
   });
@@ -1233,24 +1232,21 @@ function stopFlashSale() {
 function updateGatewayHealth() {
   GATEWAYS.forEach(g => {
     const gw = state.gateways[g];
-    if (gw.forcedDown) {
-      gw.status = 'down';
-      gw.latency = 0;
-      gw.uptime = Math.max(0, gw.uptime - randInt(0, 1));
-      return;
-    }
     const r = Math.random();
-    if (gw.status === 'healthy' && r < 0.05) gw.status = 'degraded';
-    else if (gw.status === 'degraded' && r < 0.08) gw.status = 'down';
-    else if (gw.status === 'down' && r < 0.15) gw.status = 'degraded';
-    else if (gw.status === 'degraded' && r < 0.20) gw.status = 'healthy';
-    else if (gw.status === 'healthy' && r < 0.02) gw.status = 'healthy'; // mostly stays
+    // Natural state transitions
+    if (gw.status === 'healthy' && r < 0.06) gw.status = 'degraded';
+    else if (gw.status === 'healthy' && r < 0.08) gw.status = 'down'; // sudden outage
+    else if (gw.status === 'degraded' && r < 0.10) gw.status = 'down';
+    else if (gw.status === 'degraded' && r < 0.22) gw.status = 'healthy'; // auto-recover
+    else if (gw.status === 'down' && r < 0.18) gw.status = 'degraded';
+    else if (gw.status === 'down' && r < 0.22) gw.status = 'healthy'; // recover directly
 
     if (gw.status === 'healthy') gw.latency = rand(60, 180);
     else if (gw.status === 'degraded') gw.latency = rand(180, 450);
     else gw.latency = 0;
 
     if (gw.status === 'healthy') gw.uptime = Math.min(100, gw.uptime + randInt(0, 1));
+    else gw.uptime = Math.max(0, gw.uptime - randInt(0, 2));
   });
 
   if (state.currentView === 'dashboard') renderGatewayRow();
@@ -1361,10 +1357,10 @@ function renderGatewayRow() {
   row.innerHTML = GATEWAYS.map((g, i) => {
     const gw = state.gateways[g];
     const isPref = state.preferredGateway === g;
-    const down = gw.forcedDown || gw.status === 'down';
+    const down = gw.status === 'down';
     const degraded = gw.status === 'degraded';
     const statusClass = down ? 'down' : (degraded ? 'degraded' : 'healthy');
-    const statusLabel = gw.forcedDown ? 'Forced Down' : (down ? 'Down' : (degraded ? 'Degraded' : 'Healthy'));
+    const statusLabel = down ? 'Down' : (degraded ? 'Degraded' : 'Healthy');
     const connector = i < GATEWAYS.length - 1 ? '<div class="gw-connector">→</div>' : '';
     return `
       <div class="gateway-card ${isPref ? 'preferred' : ''}" id="gwCard_${g}">
@@ -1372,17 +1368,11 @@ function renderGatewayRow() {
         <div class="gateway-status ${statusClass}">${statusLabel}</div>
         <div class="gateway-latency">${gw.latency ? gw.latency + 'ms' : '—'}</div>
         <div class="gateway-uptime">${gw.uptime}% uptime (1h)</div>
-        <div class="gateway-actions">
-          ${gw.forcedDown
-            ? '<button class="btn btn-success btn-sm" onclick="recoverGatewayV2(\''+g+'\')">Recover</button>'
-            : '<button class="btn btn-danger btn-sm" onclick="simOutageV2(\''+g+'\')">Simulate Outage</button>'}
-        </div>
         <div class="gw-overlay" id="gwOverlay_${g}"></div>
       </div>${connector}`;
   }).join('');
 }
-function simOutageV2(gw) { state.gateways[gw].forcedDown = true; renderGatewayRow(); }
-function recoverGatewayV2(gw) { state.gateways[gw].forcedDown = false; state.gateways[gw].status = 'healthy'; state.gateways[gw].latency = rand(60,180); renderGatewayRow(); }
+
 function updateCartCounter() {
   const el = document.getElementById('cartCounter');
   if (el) el.textContent = state.checkouts.length;
