@@ -1290,7 +1290,7 @@ function renderView(view) {
 // --- DASHBOARD ---
 function renderDashboardFull(area) {
   area.innerHTML = `
-    <div class="metric-grid" style="margin-bottom:var(--space-lg);grid-template-columns:repeat(6,1fr)">
+    <div class="metric-grid" style="margin-bottom:var(--space-lg)">
       <div class="metric-card">
         <div class="metric-label">Transactions</div>
         <div class="metric-value" id="statTransactions">0</div>
@@ -1312,14 +1312,9 @@ function renderDashboardFull(area) {
         <div class="metric-subtitle">saved by failover retry</div>
       </div>
       <div class="metric-card recovered">
-        <div class="metric-label">Recovered</div>
+        <div class="metric-label">Covered by Insurance</div>
         <div class="metric-value" id="statRecovered">₪0</div>
-        <div class="metric-subtitle">auto-covered next month</div>
-      </div>
-      <div class="metric-card" style="border-left:3px solid var(--warning)">
-        <div class="metric-label">Claims Pending</div>
-        <div class="metric-value" id="statClaimsPending">0</div>
-        <div class="metric-subtitle">declined awaiting claim</div>
+        <div class="metric-subtitle">auto-paid next month</div>
       </div>
     </div>
     <div class="dash-section">
@@ -1405,7 +1400,6 @@ function updateStatsBar() {
   const rescued = state.checkouts.filter(c => c.finalStatus === 'rescued').length;
   const cleared = state.checkouts.filter(c => c.finalStatus === 'cleared').length;
   const successRate = total > 0 ? ((cleared + rescued) / total * 100) : 0;
-  const claimsPending = state.ledger.filter(l => l.finalStatus === 'declined' && l.claimStatus === 'pending').length;
 
   const el = id => document.getElementById(id);
   const fmt = n => n.toLocaleString('en-US');
@@ -1414,7 +1408,6 @@ function updateStatsBar() {
   if (el('statSuccessRate')) el('statSuccessRate').textContent = total > 0 ? successRate.toFixed(1) + '%' : '—';
   if (el('statRescued')) el('statRescued').textContent = fmt(rescued);
   if (el('statRecovered')) el('statRecovered').textContent = '₪' + fmt(state.rescuedGMV);
-  if (el('statClaimsPending')) el('statClaimsPending').textContent = claimsPending;
 }
 
 function buildPathHtml(c) {
@@ -1488,71 +1481,99 @@ function showTransactionModal(txnId) {
 // --- BILLING ---
 function renderBilling(area) {
   const rescuedPct = state.totalGMV > 0 ? ((state.rescuedGMV / state.totalGMV) * 100).toFixed(0) : 0;
-  const rescuedDeg = state.totalGMV > 0 ? (state.rescuedGMV / state.totalGMV) * 360 : 0;
-  const claimDeg = state.claimableGMV > 0 ? (state.claimableGMV / state.totalGMV) * 360 : 0;
-  const clearedDeg = Math.max(0, 360 - rescuedDeg - claimDeg);
-  const pendingClaims = state.ledger.filter(l => l.finalStatus === 'declined' && l.claimStatus === 'pending').length;
-  const nextPayout = state.rescuedGMV + state.claimableGMV;
+  const insuredTotal = state.rescuedGMV + state.claimableGMV;
 
   area.innerHTML = `
-    <div class="metric-grid">
+    <div class="metric-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:var(--space-lg)">
       <div class="metric-card">
         <div class="metric-label">Total GMV</div>
         <div class="metric-value">${fmt(state.totalGMV)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> All handled</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> Month to date</div>
       </div>
       <div class="metric-card accent">
-        <div class="metric-label">Rescued GMV</div>
+        <div class="metric-label">Covered by Insurance</div>
         <div class="metric-value">${fmt(state.rescuedGMV)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${rescuedPct}% of total — auto-covered</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${rescuedPct}% of GMV — auto-covered</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Declined GMV</div>
-        <div class="metric-value" style="color:var(--danger)">${fmt(state.claimableGMV)}</div>
-        <div class="metric-change down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg> ${pendingClaims} claims pending</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Total Bill (1% / 2%)</div>
+        <div class="metric-label">Total Fees</div>
         <div class="metric-value" style="color:var(--secondary)">${fmt(state.totalBill)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> ${state.checkouts.length} txns processed</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> 1% standard · 2% insurance</div>
       </div>
       <div class="metric-card recovered">
-        <div class="metric-label">Next Month Payout</div>
-        <div class="metric-value">${fmt(nextPayout)}</div>
-        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> insured amount due ${endOfNextMonth()}</div>
+        <div class="metric-label">Payout Due</div>
+        <div class="metric-value">${fmt(insuredTotal)}</div>
+        <div class="metric-change up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg> by ${endOfNextMonth()}</div>
       </div>
     </div>
-    <div class="charts-row">
-      <div class="card">
-        <div class="card-head"><h2 class="card-title">Weekly GMV breakdown</h2></div>
-        <div class="card-body"><div id="weeklyChart" class="chart-bars"></div></div>
+    <div class="card" style="margin-bottom:var(--space-lg)">
+      <div class="card-head">
+        <h2 class="card-title">13-Month GMV Breakdown</h2>
+        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em">Current month + previous 12 months</span>
       </div>
-      <div class="card">
-        <div class="card-head"><h2 class="card-title">Routing outcomes</h2></div>
-        <div class="card-body">
-          <div class="donut-wrap">
-            <div class="donut" style="background:conic-gradient(var(--secondary) 0deg ${rescuedDeg}deg, var(--danger) ${rescuedDeg}deg ${rescuedDeg+claimDeg}deg, var(--success) ${rescuedDeg+claimDeg}deg 360deg)"><div class="donut-hole"><span class="donut-value">${rescuedPct}%</span><span class="donut-label">rescued</span></div></div>
-            <div class="legend-list">
-              <div class="legend-item"><span class="legend-dot" style="background:var(--success)"></span>Cleared<span class="legend-val">${fmt(state.totalGMV - state.rescuedGMV - state.claimableGMV)}</span></div>
-              <div class="legend-item"><span class="legend-dot" style="background:var(--secondary)"></span>Rescued <span class="legend-val">${fmt(state.rescuedGMV)}</span></div>
-              <div class="legend-item"><span class="legend-dot" style="background:var(--danger)"></span>Lost <span class="legend-val">${fmt(state.claimableGMV)}</span></div>
-            </div>
-          </div>
+      <div class="card-body">
+        <div id="monthlyChart" style="display:flex;align-items:flex-end;gap:6px;height:280px;padding:var(--space-md) 0">
+          <div style="padding:var(--space-2xl);text-align:center;color:var(--text-muted);width:100%">Loading chart...</div>
+        </div>
+        <div class="legend-list" style="padding-top:0">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--success)"></span>Cleared<span class="legend-val"></span></div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--secondary)"></span>Rescued<span class="legend-val"></span></div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--danger)"></span>Lost<span class="legend-val"></span></div>
         </div>
       </div>
     </div>
   `;
-  renderWeeklyChart();
+  renderMonthlyChart();
 }
-function renderWeeklyChart() {
-  const el = document.getElementById('weeklyChart');
+
+function renderMonthlyChart() {
+  const el = document.getElementById('monthlyChart');
   if (!el) return;
-  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  el.innerHTML = days.map(d => {
-    const saved = rand(5, 50);
-    const lost = rand(0, 5);
-    const maxBar = 180;
-    return '<div class="bar-group"><span class="bar-value">'+fmt(saved*1000)+'</span><div class="bar-wrap"><div class="bar-saved" style="height:'+(saved/maxBar*100)+'%"></div><div class="bar-lost" style="height:'+(lost/maxBar*100)+'%"></div></div><span class="bar-label">'+d+'</span></div>';
+
+  const months = [];
+  const now = new Date();
+  for (let i = 12; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+  }
+
+  // Simulate data for all months except current
+  const data = [];
+  const mn1 = m => m * 1000;
+  for (let i = 0; i < 12; i++) {
+    const base = mn1(50 + Math.sin(i * 0.7) * 30 + Math.random() * 20);
+    const rescued = Math.round(base * (0.05 + Math.random() * 0.08));
+    const lost = Math.round(base * (0.01 + Math.random() * 0.02));
+    const cleared = Math.round(base - rescued - lost);
+    data.push({ month: months[i], cleared, rescued, lost, total: Math.round(base) });
+  }
+
+  // Current month uses real data
+  const curCleared = state.totalGMV - state.rescuedGMV - state.claimableGMV;
+  data.push({ month: months[12], cleared: curCleared, rescued: state.rescuedGMV, lost: state.claimableGMV, total: state.totalGMV });
+
+  const maxVal = Math.max(...data.map(d => d.total), 1);
+  const fmtSmall = n => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(0) + 'k';
+    return n.toString();
+  };
+
+  el.innerHTML = data.map((d, i) => {
+    const isCurrent = i === 12;
+    const barH = d.total / maxVal * 200;
+    const cH = d.cleared / d.total * barH;
+    const rH = d.rescued / d.total * barH;
+    const lH = d.lost / d.total * barH;
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;min-width:0">
+      <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:4px">${fmtSmall(d.total)}</span>
+      <div style="width:100%;max-width:48px;height:${barH}px;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px 4px 0 0;overflow:hidden;background:var(--border-subtle)">
+        <div style="width:100%;height:${lH}px;background:var(--danger)" title="Lost: ${fmtSmall(d.lost)}"></div>
+        <div style="width:100%;height:${rH}px;background:var(--secondary)" title="Rescued: ${fmtSmall(d.rescued)}"></div>
+        <div style="width:100%;height:${cH}px;background:var(--success)" title="Cleared: ${fmtSmall(d.cleared)}"></div>
+      </div>
+      <span style="font-family:var(--font-mono);font-size:${isCurrent?'11px':'10px'};font-weight:${isCurrent?'700':'500'};color:${isCurrent?'var(--text)':'var(--text-muted)'};margin-top:8px">${isCurrent ? d.month + ' ★' : d.month}</span>
+    </div>`;
   }).join('');
 }
 
