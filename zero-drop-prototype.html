@@ -1079,22 +1079,13 @@ function animateRoutingV2(result) {
     // Show overlay on the last gateway card
     const lastGw = result.finalGateway || steps.filter(s => s.type === 'attempt').pop()?.gw;
     if (lastGw) {
-      const card = document.getElementById('gwCard_' + lastGw);
-      if (card) {
-        let overlay = card.querySelector('.gw-overlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.className = 'gw-overlay';
-          card.appendChild(overlay);
-        }
+      const overlay = document.getElementById('gwOverlay_' + lastGw);
+      if (overlay) {
         const cls = result.finalStatus === 'cleared' ? 'cleared' : (result.finalStatus === 'rescued' ? 'saved' : 'lost');
         const txt = result.finalStatus === 'cleared' ? 'CLEAR' : (result.finalStatus === 'rescued' ? 'SAVED' : 'LOST');
-        overlay.className = 'gw-overlay show ' + cls;
         overlay.textContent = txt;
-        setTimeout(() => {
-          overlay.classList.remove('show');
-          setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 300);
-        }, 2000);
+        overlay.className = 'gw-overlay show ' + cls;
+        setTimeout(() => { overlay.className = 'gw-overlay'; }, 2000);
       }
     }
 
@@ -1273,6 +1264,7 @@ function renderGatewayRow() {
             ? '<button class="btn btn-success btn-sm" onclick="recoverGatewayV2(\''+g+'\')">Recover</button>'
             : '<button class="btn btn-danger btn-sm" onclick="simOutageV2(\''+g+'\')">Simulate Outage</button>'}
         </div>
+        <div class="gw-overlay" id="gwOverlay_${g}"></div>
       </div>${connector}`;
   }).join('');
 }
